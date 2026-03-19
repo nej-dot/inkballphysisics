@@ -99,6 +99,14 @@ export class Simulation {
     }
 
     this.resolveBallCollisions();
+
+    if (!this.trailsEnabled) {
+      return;
+    }
+
+    for (const ball of this.balls) {
+      this.startTrailSegment(ball);
+    }
   }
 
   setTrailsEnabled(enabled: boolean) {
@@ -199,8 +207,6 @@ export class Simulation {
       const lastPoint = currentSegment[currentSegment.length - 1];
       if (!lastPoint || distanceSquared(lastPoint, ball) >= minDistanceSquared) {
         currentSegment.push({ x: ball.x, y: ball.y });
-      } else if (currentSegment.length === 1) {
-        currentSegment[0] = { x: ball.x, y: ball.y };
       }
     }
   }
