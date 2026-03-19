@@ -39,10 +39,16 @@ function formatNumber(value: number, digits = 2) {
 export function createApp(root: HTMLElement) {
   root.innerHTML = `
     <main class="shell">
+      <div class="mobile-controls-backdrop" data-mobile-controls-backdrop hidden></div>
       <aside class="side-panel controls-panel">
         <div class="panel-heading">
-          <p class="panel-eyebrow">Inkball Physics</p>
-          <h1 class="panel-title">Controls</h1>
+          <div class="controls-mobile-bar">
+            <div class="panel-heading-copy">
+              <p class="panel-eyebrow">Inkball Physics</p>
+              <h1 class="panel-title">Controls</h1>
+            </div>
+            <button type="button" class="mobile-only mobile-close-button" data-mobile-controls-close>Close</button>
+          </div>
           <p class="panel-copy">Adjust the motion, then place balls directly on the canvas.</p>
         </div>
 
@@ -146,6 +152,10 @@ export function createApp(root: HTMLElement) {
             <span class="status-pill" data-mode-label>Tool: Place</span>
             <span class="status-pill surface-pill" data-surface-description></span>
           </div>
+          <div class="mobile-quick-actions">
+            <button type="button" class="mobile-only" data-mobile-toggle>Start</button>
+            <button type="button" class="mobile-only" data-mobile-controls-toggle>Controls</button>
+          </div>
           <div class="stage-toolbar">
             <div class="stage-toolbar-group">
               <p class="toolbar-label">Canvas Tool</p>
@@ -173,6 +183,11 @@ export function createApp(root: HTMLElement) {
   `;
 
   const surfaceSelect = root.querySelector<HTMLSelectElement>("[data-surface]");
+  const shell = root.querySelector<HTMLElement>(".shell");
+  const mobileControlsBackdrop = root.querySelector<HTMLElement>("[data-mobile-controls-backdrop]");
+  const mobileControlsToggleButton = root.querySelector<HTMLButtonElement>("[data-mobile-controls-toggle]");
+  const mobileControlsCloseButton = root.querySelector<HTMLButtonElement>("[data-mobile-controls-close]");
+  const mobileToggleButton = root.querySelector<HTMLButtonElement>("[data-mobile-toggle]");
   const addBallButton = root.querySelector<HTMLButtonElement>("[data-add-ball]");
   const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
   const collisionsButton = root.querySelector<HTMLButtonElement>("[data-collisions]");
@@ -201,6 +216,11 @@ export function createApp(root: HTMLElement) {
   const canvas = root.querySelector<HTMLCanvasElement>("[data-canvas]");
 
   if (
+    !shell ||
+    !mobileControlsBackdrop ||
+    !mobileControlsToggleButton ||
+    !mobileControlsCloseButton ||
+    !mobileToggleButton ||
     !surfaceSelect ||
     !addBallButton ||
     !removeBallButton ||
@@ -233,6 +253,11 @@ export function createApp(root: HTMLElement) {
   }
 
   const ui = {
+    shell,
+    mobileControlsBackdrop,
+    mobileControlsToggleButton,
+    mobileControlsCloseButton,
+    mobileToggleButton,
     surfaceSelect,
     addBallButton,
     removeBallButton,
@@ -297,6 +322,7 @@ export function createApp(root: HTMLElement) {
   let running = false;
   let trailsEnabled = true;
   let heightMapEnabled = false;
+  let mobileControlsOpen = false;
   let interactionMode: InteractionMode = "place-ball";
   let trailStrokeWidth = translateSliderValue(Number(ui.trailWeightInput.value), TRAIL_WEIGHT_MAPPING);
   let accumulator = 0;
@@ -327,6 +353,13 @@ export function createApp(root: HTMLElement) {
     updateReadouts();
   }
 
+  function setMobileControlsOpen(open: boolean) {
+    mobileControlsOpen = open;
+    ui.shell.dataset.mobileControlsOpen = open ? "true" : "false";
+    ui.mobileControlsToggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+    ui.mobileControlsBackdrop.hidden = !open;
+  }
+
   function updateReadouts() {
     const damping = translateSliderValue(Number(ui.dampingInput.value), DAMPING_MAPPING);
     const gravity = translateSliderValue(Number(ui.gravityInput.value), GRAVITY_MAPPING);
@@ -340,6 +373,8 @@ export function createApp(root: HTMLElement) {
     ui.statusLabel.dataset.state = running ? "running" : "paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
     ui.toggleButton.setAttribute("aria-pressed", running ? "true" : "false");
+    ui.mobileToggleButton.textContent = running ? "Pause" : "Start";
+    ui.mobileToggleButton.setAttribute("aria-pressed", running ? "true" : "false");
     ui.collisionsButton.textContent = simulation.collisionsEnabled ? "Collisions On" : "Collisions Off";
     ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
@@ -455,6 +490,18 @@ export function createApp(root: HTMLElement) {
     render();
   });
 
+  ui.mobileControlsToggleButton.addEventListener("click", () => {
+    setMobileControlsOpen(!mobileControlsOpen);
+  });
+
+  ui.mobileControlsCloseButton.addEventListener("click", () => {
+    setMobileControlsOpen(false);
+  });
+
+  ui.mobileControlsBackdrop.addEventListener("click", () => {
+    setMobileControlsOpen(false);
+  });
+
   ui.placeModeButton.addEventListener("click", () => {
     setInteractionMode("place-ball");
   });
@@ -468,6 +515,11 @@ export function createApp(root: HTMLElement) {
   });
 
   ui.toggleButton.addEventListener("click", () => {
+    running = !running;
+    updateReadouts();
+  });
+
+  ui.mobileToggleButton.addEventListener("click", () => {
     running = !running;
     updateReadouts();
   });
@@ -511,6 +563,11 @@ export function createApp(root: HTMLElement) {
   });
 
   window.addEventListener("keydown", (event) => {
+    if (event.code === "Escape" && mobileControlsOpen) {
+      setMobileControlsOpen(false);
+      return;
+    }
+
     if (event.code !== "Space" || event.repeat) {
       return;
     }
@@ -530,9 +587,16 @@ export function createApp(root: HTMLElement) {
     updateReadouts();
   });
 
-  window.addEventListener("resize", () => render());
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 820 && mobileControlsOpen) {
+      setMobileControlsOpen(false);
+    }
+
+    render();
+  });
 
   seedInitialBalls();
+  setMobileControlsOpen(false);
   updateReadouts();
   render();
   window.requestAnimationFrame(frame);
