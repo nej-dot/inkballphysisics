@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 
 import { Simulation } from "../src/simulation";
+import { SURFACES } from "../src/surfaces";
+import type { SurfaceContext } from "../src/types";
 
 function createSimulation() {
   return new Simulation(
@@ -139,5 +141,40 @@ describe("Simulation trails", () => {
     expect(ball.x).toBe(40);
     expect(ball.trailSegments).toHaveLength(2);
     expect(ball.trailSegments[1]).toEqual([{ x: 40, y: 450 }]);
+  });
+});
+
+describe("Surface presets", () => {
+  test("surface ids remain unique", () => {
+    const ids = SURFACES.map((surface) => surface.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  test("all surfaces return finite heights and gradients at representative points", () => {
+    const context: SurfaceContext = {
+      width: 900,
+      height: 900,
+      scale: 900 * 0.42,
+      centerX: 450,
+      centerY: 450,
+    };
+    const samplePoints = [
+      { x: 450, y: 450 },
+      { x: 225, y: 180 },
+      { x: 690, y: 260 },
+      { x: 180, y: 720 },
+      { x: 740, y: 710 },
+    ];
+
+    for (const surface of SURFACES) {
+      for (const point of samplePoints) {
+        const height = surface.heightAt(point.x, point.y, context);
+        const gradient = surface.gradientAt(point.x, point.y, context);
+
+        expect(Number.isFinite(height)).toBe(true);
+        expect(Number.isFinite(gradient.dx)).toBe(true);
+        expect(Number.isFinite(gradient.dy)).toBe(true);
+      }
+    }
   });
 });

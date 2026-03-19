@@ -1,4 +1,13 @@
-export type SurfaceId = "tilted-plane" | "bowl" | "funnel";
+export type SurfaceId =
+  | "tilted-plane"
+  | "bowl"
+  | "funnel"
+  | "mogul-track"
+  | "sink-hole"
+  | "gradual-groove"
+  | "oldschool-pachinko"
+  | "invisible-pinball"
+  | "funnel-maze";
 
 export interface Point {
   x: number;
