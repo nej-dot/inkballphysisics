@@ -19,47 +19,76 @@ export function createApp(root: HTMLElement) {
   root.innerHTML = `
     <main class="shell">
       <aside class="side-panel controls-panel">
-        <h2 class="panel-title">Controls</h2>
-        <label class="control-group">
-          <span>Surface</span>
-          <select data-surface></select>
-        </label>
-        <div class="button-group">
-          <button type="button" data-add-ball>Add Ball</button>
-          <button type="button" data-remove-ball>Remove Ball</button>
-          <button type="button" data-collisions>Collisions On</button>
-          <button type="button" data-toggle>Start</button>
-          <button type="button" data-reset>Reset</button>
-          <button type="button" data-trails>Trails On</button>
-          <button type="button" data-export>Export SVG</button>
+        <div class="panel-heading">
+          <p class="panel-eyebrow">Inkball Physics</p>
+          <h1 class="panel-title">Controls</h1>
+          <p class="panel-copy">Adjust the motion, then place balls directly on the canvas.</p>
         </div>
-        <label class="control-group slider-group">
-          <span>Damping <output data-damping-value></output></span>
-          <input data-damping type="range" min="0" max="24" step="0.1" value="0.4" />
-        </label>
-        <label class="control-group slider-group">
-          <span>Gravity <output data-gravity-value></output></span>
-          <input data-gravity type="range" min="0" max="120000" step="500" value="100000" />
-        </label>
-        <label class="control-group slider-group">
-          <span>Ball Size <output data-size-value></output></span>
-          <input data-size type="range" min="4" max="18" step="1" value="12" />
-        </label>
+
+        <section class="control-section">
+          <label class="control-group">
+            <span>Surface</span>
+            <select data-surface></select>
+          </label>
+        </section>
+
+        <section class="control-section">
+          <p class="section-label">Physics</p>
+          <label class="control-group slider-group">
+            <span>Damping <output data-damping-value></output></span>
+            <input data-damping type="range" min="0" max="24" step="0.1" value="0.4" />
+          </label>
+          <label class="control-group slider-group">
+            <span>Gravity <output data-gravity-value></output></span>
+            <input data-gravity type="range" min="0" max="120000" step="500" value="100000" />
+          </label>
+          <label class="control-group slider-group">
+            <span>Ball Size <output data-size-value></output></span>
+            <input data-size type="range" min="4" max="18" step="1" value="12" />
+          </label>
+        </section>
+
+        <section class="control-section">
+          <p class="section-label">Simulation</p>
+          <div class="button-row button-row-primary">
+            <button type="button" class="primary-action" data-toggle>Start</button>
+            <button type="button" data-reset>Reset</button>
+          </div>
+          <div class="button-row">
+            <button type="button" data-add-ball>Add Ball</button>
+            <button type="button" data-remove-ball>Remove Ball</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <p class="section-label">Display</p>
+          <div class="button-row">
+            <button type="button" data-collisions>Collisions On</button>
+            <button type="button" data-trails>Trails On</button>
+          </div>
+        </section>
+
+        <section class="control-section">
+          <p class="section-label">Export</p>
+          <div class="button-row">
+            <button type="button" data-export>Export SVG</button>
+          </div>
+        </section>
       </aside>
 
-      <section class="drawing-panel">
-        <canvas class="drawing-canvas" width="${SIMULATION_SIZE}" height="${SIMULATION_SIZE}" data-canvas></canvas>
+      <section class="workspace-panel">
+        <div class="canvas-header">
+          <div class="status-strip">
+            <span class="status-pill" data-status>Paused</span>
+            <span class="status-pill" data-ball-count>0 balls</span>
+            <span class="status-pill surface-pill" data-surface-description></span>
+          </div>
+          <p class="canvas-note">Click anywhere in the drawing area to place a ball. Press Space to start or pause.</p>
+        </div>
+        <section class="drawing-panel">
+          <canvas class="drawing-canvas" width="${SIMULATION_SIZE}" height="${SIMULATION_SIZE}" data-canvas></canvas>
+        </section>
       </section>
-
-      <aside class="side-panel info-panel">
-        <h2 class="panel-title">Info</h2>
-        <div class="status-stack">
-          <span data-status>Paused</span>
-          <span data-ball-count>0 balls</span>
-          <span data-surface-description></span>
-        </div>
-        <p class="canvas-note">Click anywhere in the drawing area to place a ball at that position.</p>
-      </aside>
     </main>
   `;
 
@@ -166,9 +195,13 @@ export function createApp(root: HTMLElement) {
     ui.gravityValue.value = `${Math.round(Number(ui.gravityInput.value))}`;
     ui.sizeValue.value = `${Math.round(Number(ui.sizeInput.value))}`;
     ui.statusLabel.textContent = running ? "Running" : "Paused";
+    ui.statusLabel.dataset.state = running ? "running" : "paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
+    ui.toggleButton.setAttribute("aria-pressed", running ? "true" : "false");
     ui.collisionsButton.textContent = simulation.collisionsEnabled ? "Collisions On" : "Collisions Off";
+    ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
+    ui.trailsButton.setAttribute("aria-pressed", trailsEnabled ? "true" : "false");
     ui.removeBallButton.disabled = simulation.ballCount === 0;
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
     ui.surfaceDescription.textContent = simulation.surface.description;
