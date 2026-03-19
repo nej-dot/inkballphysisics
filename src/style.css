@@ -145,6 +145,10 @@ input[type="range"] {
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
 }
 
+.button-row-single {
+  grid-template-columns: 1fr;
+}
+
 .control-group {
   display: grid;
   gap: 0.45rem;

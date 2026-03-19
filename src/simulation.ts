@@ -1,5 +1,6 @@
+import { getPatternOffsets } from "./patterns";
 import { getSurface } from "./surfaces";
-import type { Ball, Point, SimulationConfig, SurfaceContext, SurfaceId } from "./types";
+import type { Ball, BallPatternId, Point, SimulationConfig, SurfaceContext, SurfaceId } from "./types";
 
 const DEFAULT_SEED = 0xdecafbad;
 const DEFAULT_INITIAL_VELOCITY = {
@@ -176,8 +177,31 @@ export class Simulation {
     this.separateNewBall(ball);
   }
 
+  addPattern(patternId: BallPatternId, centerX = this.config.width / 2, centerY = this.config.height / 2) {
+    const spacing = Math.max(this.config.defaultBallRadius * 2.6, this.config.defaultBallRadius * 2 + 2);
+
+    for (const offset of getPatternOffsets(patternId, spacing)) {
+      this.addBallAt(centerX + offset.x, centerY + offset.y, 0, 0);
+    }
+  }
+
   removeBall() {
     return this.balls.pop() !== undefined;
+  }
+
+  removeBallAt(x: number, y: number) {
+    for (let index = this.balls.length - 1; index >= 0; index -= 1) {
+      const ball = this.balls[index];
+
+      if (distanceSquared(ball, { x, y }) > ball.radius * ball.radius) {
+        continue;
+      }
+
+      this.balls.splice(index, 1);
+      return true;
+    }
+
+    return false;
   }
 
   step(dt: number) {

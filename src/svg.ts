@@ -15,14 +15,14 @@ function pathFromTrailSegment(segment: Ball["trailSegments"][number]) {
     .join(" ");
 }
 
-export function buildSvgDocument(width: number, height: number, balls: Ball[]) {
+export function buildSvgDocument(width: number, height: number, balls: Ball[], trailStrokeWidth = EXPORT_STROKE_WIDTH) {
   const exportHeightMm = (height / width) * EXPORT_WIDTH_MM;
   const paths = balls
     .flatMap((ball) => ball.trailSegments.map((segment) => pathFromTrailSegment(segment)))
     .filter(Boolean)
     .map(
       (pathData) =>
-        `  <path d="${pathData}" fill="none" stroke="#000000" stroke-width="${EXPORT_STROKE_WIDTH}" stroke-linecap="round" stroke-linejoin="round" />`,
+        `  <path d="${pathData}" fill="none" stroke="#000000" stroke-width="${trailStrokeWidth}" stroke-linecap="round" stroke-linejoin="round" />`,
     )
     .join("\n");
 

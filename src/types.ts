@@ -9,6 +9,8 @@ export type SurfaceId =
   | "invisible-pinball"
   | "funnel-maze";
 
+export type BallPatternId = "circle" | "cross" | "horizontal-line" | "vertical-line" | "triangle" | "square";
+
 export interface Point {
   x: number;
   y: number;

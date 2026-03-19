@@ -4,6 +4,7 @@ const TRAIL_STROKE = "#111111";
 const BALL_STROKE = "#111111";
 const BALL_FILL = "#ffffff";
 const CANVAS_BACKGROUND = "#ffffff";
+const DEFAULT_TRAIL_STROKE_WIDTH = 1.15;
 
 export class CanvasRenderer {
   private readonly context: CanvasRenderingContext2D;
@@ -31,7 +32,7 @@ export class CanvasRenderer {
     this.context.setTransform(displayWidth / this.width, 0, 0, displayHeight / this.height, 0, 0);
   }
 
-  render(balls: Ball[], showTrails = true) {
+  render(balls: Ball[], showTrails = true, trailStrokeWidth = DEFAULT_TRAIL_STROKE_WIDTH) {
     this.context.fillStyle = CANVAS_BACKGROUND;
     this.context.clearRect(0, 0, this.width, this.height);
     this.context.fillRect(0, 0, this.width, this.height);
@@ -42,7 +43,7 @@ export class CanvasRenderer {
 
     if (showTrails) {
       this.context.strokeStyle = TRAIL_STROKE;
-      this.context.lineWidth = 1.15;
+      this.context.lineWidth = trailStrokeWidth;
       this.context.lineCap = "round";
       this.context.lineJoin = "round";
 

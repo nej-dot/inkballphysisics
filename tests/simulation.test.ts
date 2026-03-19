@@ -72,6 +72,37 @@ describe("Simulation ball management", () => {
     expect(simulation.ballCount).toBe(0);
   });
 
+  test("removeBallAt removes the clicked ball without affecting the others", () => {
+    const simulation = createSimulation();
+
+    simulation.addBallAt(200, 200);
+    simulation.addBallAt(320, 320);
+
+    expect(simulation.removeBallAt(200, 200)).toBe(true);
+    expect(simulation.getBalls().map((ball) => ball.id)).toEqual([2]);
+    expect(simulation.removeBallAt(200, 200)).toBe(false);
+  });
+
+  test("addPattern stamps the requested layout with stationary balls", () => {
+    const expectedCounts = {
+      circle: 12,
+      cross: 9,
+      "horizontal-line": 7,
+      "vertical-line": 7,
+      triangle: 10,
+      square: 9,
+    } as const;
+
+    for (const [patternId, count] of Object.entries(expectedCounts)) {
+      const simulation = createSimulation();
+
+      simulation.addPattern(patternId as keyof typeof expectedCounts);
+
+      expect(simulation.ballCount).toBe(count);
+      expect(simulation.getBalls().every((ball) => ball.vx === 0 && ball.vy === 0)).toBe(true);
+    }
+  });
+
   test("disabled ball collisions let balls pass through each other", () => {
     const simulation = createSimulation();
 
