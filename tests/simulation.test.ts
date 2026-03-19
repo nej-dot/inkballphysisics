@@ -69,6 +69,23 @@ describe("Simulation ball management", () => {
     expect(simulation.removeBall()).toBe(false);
     expect(simulation.ballCount).toBe(0);
   });
+
+  test("disabled ball collisions let balls pass through each other", () => {
+    const simulation = createSimulation();
+
+    simulation.addBallAt(300, 450, 60, 0);
+    simulation.addBallAt(340, 450, -60, 0);
+    simulation.setBallCollisionsEnabled(false);
+
+    for (let index = 0; index < 60; index += 1) {
+      simulation.step(1 / 120);
+    }
+
+    const [firstBall, secondBall] = simulation.getBalls();
+    expect(firstBall).toBeDefined();
+    expect(secondBall).toBeDefined();
+    expect(firstBall!.x).toBeGreaterThan(secondBall!.x);
+  });
 });
 
 describe("Simulation trails", () => {

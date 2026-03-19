@@ -38,6 +38,7 @@ export class Simulation {
   private balls: Ball[] = [];
   private config: SimulationConfig;
   private trailsEnabled = true;
+  private ballCollisionsEnabled = true;
 
   constructor(config: SimulationConfig, surfaceId: SurfaceId, seed = DEFAULT_SEED) {
     this.config = config;
@@ -73,6 +74,10 @@ export class Simulation {
     return this.balls.length;
   }
 
+  get collisionsEnabled() {
+    return this.ballCollisionsEnabled;
+  }
+
   getBalls() {
     return this.balls;
   }
@@ -102,7 +107,9 @@ export class Simulation {
       this.keepBallInsideBounds(ball);
     }
 
-    this.resolveBallCollisions();
+    if (this.ballCollisionsEnabled) {
+      this.resolveBallCollisions();
+    }
 
     if (!this.trailsEnabled) {
       return;
@@ -122,6 +129,14 @@ export class Simulation {
 
     for (const ball of this.balls) {
       this.startTrailSegment(ball);
+    }
+  }
+
+  setBallCollisionsEnabled(enabled: boolean) {
+    this.ballCollisionsEnabled = enabled;
+
+    if (enabled) {
+      this.resolveBallCollisions();
     }
   }
 
@@ -187,7 +202,9 @@ export class Simulation {
       this.resolveBoundaryCollision(ball);
     }
 
-    this.resolveBallCollisions();
+    if (this.ballCollisionsEnabled) {
+      this.resolveBallCollisions();
+    }
 
     for (const ball of this.balls) {
       if (!this.trailsEnabled) {

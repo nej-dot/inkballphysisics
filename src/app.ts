@@ -27,6 +27,7 @@ export function createApp(root: HTMLElement) {
         <div class="button-group">
           <button type="button" data-add-ball>Add Ball</button>
           <button type="button" data-remove-ball>Remove Ball</button>
+          <button type="button" data-collisions>Collisions On</button>
           <button type="button" data-toggle>Start</button>
           <button type="button" data-reset>Reset</button>
           <button type="button" data-trails>Trails On</button>
@@ -65,6 +66,7 @@ export function createApp(root: HTMLElement) {
   const surfaceSelect = root.querySelector<HTMLSelectElement>("[data-surface]");
   const addBallButton = root.querySelector<HTMLButtonElement>("[data-add-ball]");
   const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
+  const collisionsButton = root.querySelector<HTMLButtonElement>("[data-collisions]");
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-toggle]");
   const resetButton = root.querySelector<HTMLButtonElement>("[data-reset]");
   const trailsButton = root.querySelector<HTMLButtonElement>("[data-trails]");
@@ -84,6 +86,7 @@ export function createApp(root: HTMLElement) {
     !surfaceSelect ||
     !addBallButton ||
     !removeBallButton ||
+    !collisionsButton ||
     !toggleButton ||
     !resetButton ||
     !trailsButton ||
@@ -106,6 +109,7 @@ export function createApp(root: HTMLElement) {
     surfaceSelect,
     addBallButton,
     removeBallButton,
+    collisionsButton,
     toggleButton,
     resetButton,
     trailsButton,
@@ -163,6 +167,7 @@ export function createApp(root: HTMLElement) {
     ui.sizeValue.value = `${Math.round(Number(ui.sizeInput.value))}`;
     ui.statusLabel.textContent = running ? "Running" : "Paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
+    ui.collisionsButton.textContent = simulation.collisionsEnabled ? "Collisions On" : "Collisions Off";
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
     ui.removeBallButton.disabled = simulation.ballCount === 0;
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
@@ -219,6 +224,12 @@ export function createApp(root: HTMLElement) {
 
   ui.removeBallButton.addEventListener("click", () => {
     simulation.removeBall();
+    updateReadouts();
+    render();
+  });
+
+  ui.collisionsButton.addEventListener("click", () => {
+    simulation.setBallCollisionsEnabled(!simulation.collisionsEnabled);
     updateReadouts();
     render();
   });
