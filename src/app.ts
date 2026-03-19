@@ -358,6 +358,7 @@ export function createApp(root: HTMLElement) {
     ui.shell.dataset.mobileControlsOpen = open ? "true" : "false";
     ui.mobileControlsToggleButton.setAttribute("aria-expanded", open ? "true" : "false");
     ui.mobileControlsBackdrop.hidden = !open;
+    document.body.style.overflow = open && window.innerWidth <= 820 ? "hidden" : "";
   }
 
   function updateReadouts() {
