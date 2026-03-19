@@ -8,7 +8,7 @@ import type { SurfaceId } from "./types";
 
 const FIXED_TIMESTEP_SECONDS = 1 / 120;
 const SIMULATION_SIZE = 900;
-const DEFAULT_SURFACE: SurfaceId = "bowl";
+const DEFAULT_SURFACE: SurfaceId = "funnel";
 const INITIAL_BALL_COUNT = 2;
 
 function formatNumber(value: number, digits = 2) {
@@ -26,6 +26,7 @@ export function createApp(root: HTMLElement) {
         </label>
         <div class="button-group">
           <button type="button" data-add-ball>Add Ball</button>
+          <button type="button" data-remove-ball>Remove Ball</button>
           <button type="button" data-toggle>Start</button>
           <button type="button" data-reset>Reset</button>
           <button type="button" data-trails>Trails On</button>
@@ -33,15 +34,15 @@ export function createApp(root: HTMLElement) {
         </div>
         <label class="control-group slider-group">
           <span>Damping <output data-damping-value></output></span>
-          <input data-damping type="range" min="0" max="24" step="0.1" value="1.8" />
+          <input data-damping type="range" min="0" max="24" step="0.1" value="0.4" />
         </label>
         <label class="control-group slider-group">
           <span>Gravity <output data-gravity-value></output></span>
-          <input data-gravity type="range" min="0" max="120000" step="500" value="16000" />
+          <input data-gravity type="range" min="0" max="120000" step="500" value="100000" />
         </label>
         <label class="control-group slider-group">
           <span>Ball Size <output data-size-value></output></span>
-          <input data-size type="range" min="4" max="18" step="1" value="7" />
+          <input data-size type="range" min="4" max="18" step="1" value="12" />
         </label>
       </aside>
 
@@ -63,6 +64,7 @@ export function createApp(root: HTMLElement) {
 
   const surfaceSelect = root.querySelector<HTMLSelectElement>("[data-surface]");
   const addBallButton = root.querySelector<HTMLButtonElement>("[data-add-ball]");
+  const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-toggle]");
   const resetButton = root.querySelector<HTMLButtonElement>("[data-reset]");
   const trailsButton = root.querySelector<HTMLButtonElement>("[data-trails]");
@@ -81,6 +83,7 @@ export function createApp(root: HTMLElement) {
   if (
     !surfaceSelect ||
     !addBallButton ||
+    !removeBallButton ||
     !toggleButton ||
     !resetButton ||
     !trailsButton ||
@@ -102,6 +105,7 @@ export function createApp(root: HTMLElement) {
   const ui = {
     surfaceSelect,
     addBallButton,
+    removeBallButton,
     toggleButton,
     resetButton,
     trailsButton,
@@ -160,6 +164,7 @@ export function createApp(root: HTMLElement) {
     ui.statusLabel.textContent = running ? "Running" : "Paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
+    ui.removeBallButton.disabled = simulation.ballCount === 0;
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
     ui.surfaceDescription.textContent = simulation.surface.description;
   }
@@ -208,6 +213,12 @@ export function createApp(root: HTMLElement) {
 
   ui.addBallButton.addEventListener("click", () => {
     simulation.addBall();
+    updateReadouts();
+    render();
+  });
+
+  ui.removeBallButton.addEventListener("click", () => {
+    simulation.removeBall();
     updateReadouts();
     render();
   });

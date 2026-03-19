@@ -2,6 +2,7 @@ import type { Ball } from "./types";
 
 const TRAIL_STROKE = "#111111";
 const BALL_STROKE = "#111111";
+const BALL_FILL = "#ffffff";
 const CANVAS_BACKGROUND = "#ffffff";
 
 export class CanvasRenderer {
@@ -63,10 +64,12 @@ export class CanvasRenderer {
     }
 
     this.context.strokeStyle = BALL_STROKE;
+    this.context.fillStyle = BALL_FILL;
     this.context.lineWidth = 1.6;
     for (const ball of balls) {
       this.context.beginPath();
       this.context.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      this.context.fill();
       this.context.stroke();
     }
   }

@@ -34,6 +34,43 @@ function createBall(x: number, y: number, vx: number, vy: number) {
   return { simulation, ball };
 }
 
+describe("Simulation ball management", () => {
+  test("all balls use the same default initial velocity", () => {
+    const simulation = createSimulation();
+
+    simulation.addBall();
+    simulation.addBall();
+    simulation.addBallAt(300, 400);
+
+    const [firstBall, secondBall, thirdBall] = simulation.getBalls();
+
+    expect(firstBall).toBeDefined();
+    expect(secondBall).toBeDefined();
+    expect(thirdBall).toBeDefined();
+    expect(firstBall?.vx).not.toBe(0);
+    expect(firstBall?.vy).not.toBe(0);
+    expect(secondBall?.vx).toBe(firstBall?.vx);
+    expect(secondBall?.vy).toBe(firstBall?.vy);
+    expect(thirdBall?.vx).toBe(firstBall?.vx);
+    expect(thirdBall?.vy).toBe(firstBall?.vy);
+  });
+
+  test("removeBall removes the most recently added ball", () => {
+    const simulation = createSimulation();
+
+    simulation.addBallAt(200, 200);
+    simulation.addBallAt(300, 300);
+
+    expect(simulation.ballCount).toBe(2);
+    expect(simulation.removeBall()).toBe(true);
+    expect(simulation.ballCount).toBe(1);
+    expect(simulation.getBalls().map((ball) => ball.id)).toEqual([1]);
+    expect(simulation.removeBall()).toBe(true);
+    expect(simulation.removeBall()).toBe(false);
+    expect(simulation.ballCount).toBe(0);
+  });
+});
+
 describe("Simulation trails", () => {
   test("slow movement still accumulates visible trail points", () => {
     const { simulation, ball } = createBall(450, 450, 60, 0);

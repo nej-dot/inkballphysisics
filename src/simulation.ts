@@ -2,6 +2,10 @@ import { getSurface } from "./surfaces";
 import type { Ball, Point, SimulationConfig, SurfaceContext, SurfaceId } from "./types";
 
 const DEFAULT_SEED = 0xdecafbad;
+const DEFAULT_INITIAL_VELOCITY = {
+  vx: 41.87310486828857,
+  vy: 15.708513766353324,
+};
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -127,7 +131,7 @@ export class Simulation {
     this.rng = createMulberry32(this.initialSeed);
   }
 
-  addBall() {
+  addBall(vx = DEFAULT_INITIAL_VELOCITY.vx, vy = DEFAULT_INITIAL_VELOCITY.vy) {
     const radius = this.config.defaultBallRadius;
     const margin = Math.max(this.config.spawnMargin, radius + 4);
     let x = margin + this.rng() * (this.config.width - margin * 2);
@@ -142,36 +146,23 @@ export class Simulation {
       y = margin + this.rng() * (this.config.height - margin * 2);
     }
 
-    const centerOffsetX = x - this.context.centerX;
-    const centerOffsetY = y - this.context.centerY;
-    const radialLength = Math.hypot(centerOffsetX, centerOffsetY) || 1;
-
-    const tangentX = -centerOffsetY / radialLength;
-    const tangentY = centerOffsetX / radialLength;
-    const radialX = centerOffsetX / radialLength;
-    const radialY = centerOffsetY / radialLength;
-    const tangentialSpeed = 30 + this.rng() * 80;
-    const radialSpeed = (this.rng() - 0.5) * 35;
-
-    const ball = this.createBall(
-      x,
-      y,
-      radius,
-      tangentX * tangentialSpeed + radialX * radialSpeed,
-      tangentY * tangentialSpeed + radialY * radialSpeed,
-    );
+    const ball = this.createBall(x, y, radius, vx, vy);
 
     this.balls.push(ball);
     this.keepBallInsideBounds(ball);
     this.separateNewBall(ball);
   }
 
-  addBallAt(x: number, y: number) {
+  addBallAt(x: number, y: number, vx = DEFAULT_INITIAL_VELOCITY.vx, vy = DEFAULT_INITIAL_VELOCITY.vy) {
     const radius = this.config.defaultBallRadius;
-    const ball = this.createBall(x, y, radius, 0, 0);
+    const ball = this.createBall(x, y, radius, vx, vy);
     this.keepBallInsideBounds(ball);
     this.balls.push(ball);
     this.separateNewBall(ball);
+  }
+
+  removeBall() {
+    return this.balls.pop() !== undefined;
   }
 
   step(dt: number) {
