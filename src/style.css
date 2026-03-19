@@ -65,6 +65,10 @@ input[type="range"] {
   accent-color: #111111;
 }
 
+input:disabled {
+  opacity: 0.45;
+}
+
 #app {
   width: 100%;
 }
@@ -161,6 +165,10 @@ input[type="range"] {
   min-width: 160px;
 }
 
+.control-group[data-disabled="true"] {
+  opacity: 0.52;
+}
+
 .slider-group {
   min-width: 0;
 }
@@ -184,6 +192,41 @@ output {
 .canvas-header {
   display: grid;
   gap: 0.6rem;
+}
+
+.stage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: start;
+  justify-content: space-between;
+}
+
+.stage-toolbar-group {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.stage-toolbar-group-compact {
+  justify-items: start;
+}
+
+.toolbar-label {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.tool-button-row {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.tool-button-row-single {
+  grid-template-columns: 1fr;
 }
 
 .status-strip {
@@ -230,6 +273,18 @@ output {
   box-shadow: 0 24px 48px rgba(17, 17, 17, 0.1);
 }
 
+.drawing-canvas[data-mode="place-ball"] {
+  cursor: cell;
+}
+
+.drawing-canvas[data-mode="erase-ball"] {
+  cursor: crosshair;
+}
+
+.drawing-canvas[data-mode="stamp-pattern"] {
+  cursor: copy;
+}
+
 .canvas-note {
   margin: 0;
   font-size: 0.92rem;
@@ -253,6 +308,10 @@ output {
     max-width: 860px;
   }
 
+  .stage-toolbar {
+    align-items: stretch;
+  }
+
   .drawing-panel {
     order: -1;
   }
@@ -270,7 +329,8 @@ output {
   }
 
   .button-row,
-  .button-row-primary {
+  .button-row-primary,
+  .tool-button-row {
     grid-template-columns: 1fr;
   }
 }

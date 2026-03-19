@@ -30,6 +30,12 @@ const DEFAULT_TRAIL_WEIGHT_SLIDER_VALUE = Math.round(
   translateSimulationValue(DEFAULT_TRAIL_WEIGHT, TRAIL_WEIGHT_MAPPING),
 );
 
+type InteractionMode = "place-ball" | "erase-ball" | "stamp-pattern";
+
+function formatNumber(value: number, digits = 2) {
+  return value.toFixed(digits).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
+}
+
 export function createApp(root: HTMLElement) {
   root.innerHTML = `
     <main class="shell">
@@ -97,14 +103,12 @@ export function createApp(root: HTMLElement) {
         </section>
 
         <section class="control-section">
-          <p class="section-label">Patterns</p>
+          <p class="section-label">Pattern Stamp</p>
           <label class="control-group">
             <span>Preset</span>
             <select data-pattern></select>
           </label>
-          <div class="button-row button-row-single">
-            <button type="button" data-stamp-pattern>Stamp Pattern</button>
-          </div>
+          <p class="control-hint">Choose a preset, then use the Stamp tool on the canvas to place it where you want.</p>
         </section>
 
         <section class="control-section">
@@ -124,10 +128,6 @@ export function createApp(root: HTMLElement) {
             <button type="button" data-collisions>Collisions On</button>
             <button type="button" data-trails>Trails On</button>
           </div>
-          <div class="button-row button-row-single">
-            <button type="button" data-height-map>Height Map Off</button>
-          </div>
-          <p class="control-hint">Analysis only. This view does not change the simulation or SVG export.</p>
         </section>
 
         <section class="control-section">
@@ -143,9 +143,27 @@ export function createApp(root: HTMLElement) {
           <div class="status-strip">
             <span class="status-pill" data-status>Paused</span>
             <span class="status-pill" data-ball-count>0 balls</span>
+            <span class="status-pill" data-mode-label>Tool: Place</span>
             <span class="status-pill surface-pill" data-surface-description></span>
           </div>
-          <p class="canvas-note">Click empty space to place a ball, or click an existing ball to remove it. Press Space to start or pause.</p>
+          <div class="stage-toolbar">
+            <div class="stage-toolbar-group">
+              <p class="toolbar-label">Canvas Tool</p>
+              <div class="tool-button-row">
+                <button type="button" data-mode-place>Place</button>
+                <button type="button" data-mode-erase>Erase</button>
+                <button type="button" data-mode-stamp>Stamp Pattern</button>
+              </div>
+            </div>
+            <div class="stage-toolbar-group stage-toolbar-group-compact">
+              <p class="toolbar-label">Overlay</p>
+              <div class="tool-button-row tool-button-row-single">
+                <button type="button" data-height-map>Height Map</button>
+              </div>
+              <p class="control-hint">Analysis only. The overlay does not affect the simulation or SVG export.</p>
+            </div>
+          </div>
+          <p class="canvas-note" data-canvas-note></p>
         </div>
         <section class="drawing-panel">
           <canvas class="drawing-canvas" width="${SIMULATION_SIZE}" height="${SIMULATION_SIZE}" data-canvas></canvas>
@@ -159,10 +177,12 @@ export function createApp(root: HTMLElement) {
   const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
   const collisionsButton = root.querySelector<HTMLButtonElement>("[data-collisions]");
   const heightMapButton = root.querySelector<HTMLButtonElement>("[data-height-map]");
+  const placeModeButton = root.querySelector<HTMLButtonElement>("[data-mode-place]");
+  const eraseModeButton = root.querySelector<HTMLButtonElement>("[data-mode-erase]");
+  const stampModeButton = root.querySelector<HTMLButtonElement>("[data-mode-stamp]");
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-toggle]");
   const resetButton = root.querySelector<HTMLButtonElement>("[data-reset]");
   const patternSelect = root.querySelector<HTMLSelectElement>("[data-pattern]");
-  const stampPatternButton = root.querySelector<HTMLButtonElement>("[data-stamp-pattern]");
   const trailsButton = root.querySelector<HTMLButtonElement>("[data-trails]");
   const exportButton = root.querySelector<HTMLButtonElement>("[data-export]");
   const dampingInput = root.querySelector<HTMLInputElement>("[data-damping]");
@@ -175,7 +195,9 @@ export function createApp(root: HTMLElement) {
   const trailWeightValue = root.querySelector<HTMLOutputElement>("[data-trail-weight-value]");
   const statusLabel = root.querySelector<HTMLElement>("[data-status]");
   const ballCountLabel = root.querySelector<HTMLElement>("[data-ball-count]");
+  const modeLabel = root.querySelector<HTMLElement>("[data-mode-label]");
   const surfaceDescription = root.querySelector<HTMLElement>("[data-surface-description]");
+  const canvasNote = root.querySelector<HTMLElement>("[data-canvas-note]");
   const canvas = root.querySelector<HTMLCanvasElement>("[data-canvas]");
 
   if (
@@ -184,10 +206,12 @@ export function createApp(root: HTMLElement) {
     !removeBallButton ||
     !collisionsButton ||
     !heightMapButton ||
+    !placeModeButton ||
+    !eraseModeButton ||
+    !stampModeButton ||
     !toggleButton ||
     !resetButton ||
     !patternSelect ||
-    !stampPatternButton ||
     !trailsButton ||
     !exportButton ||
     !dampingInput ||
@@ -200,7 +224,9 @@ export function createApp(root: HTMLElement) {
     !trailWeightValue ||
     !statusLabel ||
     !ballCountLabel ||
+    !modeLabel ||
     !surfaceDescription ||
+    !canvasNote ||
     !canvas
   ) {
     throw new Error("Failed to create the application UI.");
@@ -212,10 +238,12 @@ export function createApp(root: HTMLElement) {
     removeBallButton,
     collisionsButton,
     heightMapButton,
+    placeModeButton,
+    eraseModeButton,
+    stampModeButton,
     toggleButton,
     resetButton,
     patternSelect,
-    stampPatternButton,
     trailsButton,
     exportButton,
     dampingInput,
@@ -228,7 +256,9 @@ export function createApp(root: HTMLElement) {
     trailWeightValue,
     statusLabel,
     ballCountLabel,
+    modeLabel,
     surfaceDescription,
+    canvasNote,
     canvas,
   };
 
@@ -267,6 +297,7 @@ export function createApp(root: HTMLElement) {
   let running = false;
   let trailsEnabled = true;
   let heightMapEnabled = false;
+  let interactionMode: InteractionMode = "place-ball";
   let trailStrokeWidth = translateSliderValue(Number(ui.trailWeightInput.value), TRAIL_WEIGHT_MAPPING);
   let accumulator = 0;
   let lastTimestamp = performance.now();
@@ -287,11 +318,24 @@ export function createApp(root: HTMLElement) {
     };
   }
 
+  function getSelectedPatternLabel() {
+    return BALL_PATTERNS.find((pattern) => pattern.id === ui.patternSelect.value)?.label ?? "Pattern";
+  }
+
+  function setInteractionMode(mode: InteractionMode) {
+    interactionMode = mode;
+    updateReadouts();
+  }
+
   function updateReadouts() {
-    ui.dampingValue.value = `${Math.round(Number(ui.dampingInput.value))}`;
-    ui.gravityValue.value = `${Math.round(Number(ui.gravityInput.value))}`;
-    ui.sizeValue.value = `${Math.round(Number(ui.sizeInput.value))}`;
-    ui.trailWeightValue.value = `${trailStrokeWidth.toFixed(2).replace(/\.00$/, "").replace(/(\.\d)0$/, "$1")}`;
+    const damping = translateSliderValue(Number(ui.dampingInput.value), DAMPING_MAPPING);
+    const gravity = translateSliderValue(Number(ui.gravityInput.value), GRAVITY_MAPPING);
+    const ballSize = translateSliderValue(Number(ui.sizeInput.value), BALL_SIZE_MAPPING);
+
+    ui.dampingValue.value = formatNumber(damping, 1);
+    ui.gravityValue.value = `${Math.round(gravity).toLocaleString()}`;
+    ui.sizeValue.value = `${Math.round(ballSize)} px`;
+    ui.trailWeightValue.value = formatNumber(trailStrokeWidth, 2);
     ui.statusLabel.textContent = running ? "Running" : "Paused";
     ui.statusLabel.dataset.state = running ? "running" : "paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
@@ -300,11 +344,30 @@ export function createApp(root: HTMLElement) {
     ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
     ui.trailsButton.setAttribute("aria-pressed", trailsEnabled ? "true" : "false");
-    ui.heightMapButton.textContent = heightMapEnabled ? "Height Map On" : "Height Map Off";
     ui.heightMapButton.setAttribute("aria-pressed", heightMapEnabled ? "true" : "false");
+    ui.placeModeButton.setAttribute("aria-pressed", interactionMode === "place-ball" ? "true" : "false");
+    ui.eraseModeButton.setAttribute("aria-pressed", interactionMode === "erase-ball" ? "true" : "false");
+    ui.stampModeButton.setAttribute("aria-pressed", interactionMode === "stamp-pattern" ? "true" : "false");
     ui.removeBallButton.disabled = simulation.ballCount === 0;
+    ui.trailWeightInput.disabled = !trailsEnabled;
+    ui.trailWeightInput
+      .closest(".control-group")
+      ?.setAttribute("data-disabled", trailsEnabled ? "false" : "true");
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
+    ui.modeLabel.textContent =
+      interactionMode === "place-ball"
+        ? "Tool: Place"
+        : interactionMode === "erase-ball"
+          ? "Tool: Erase"
+          : `Tool: Stamp ${getSelectedPatternLabel()}`;
     ui.surfaceDescription.textContent = simulation.surface.description;
+    ui.canvas.dataset.mode = interactionMode;
+    ui.canvasNote.textContent =
+      interactionMode === "place-ball"
+        ? "Click the canvas to place a ball. Press Space to start or pause."
+        : interactionMode === "erase-ball"
+          ? "Click a ball to remove it. Press Space to start or pause."
+          : `Click the canvas to stamp the ${getSelectedPatternLabel()} preset. Press Space to start or pause.`;
   }
 
   function render() {
@@ -343,6 +406,10 @@ export function createApp(root: HTMLElement) {
     updateReadouts();
   });
 
+  ui.patternSelect.addEventListener("change", () => {
+    updateReadouts();
+  });
+
   ui.dampingInput.addEventListener("input", () => {
     simulation.setDamping(translateSliderValue(Number(ui.dampingInput.value), DAMPING_MAPPING));
     updateReadouts();
@@ -376,12 +443,6 @@ export function createApp(root: HTMLElement) {
     render();
   });
 
-  ui.stampPatternButton.addEventListener("click", () => {
-    simulation.addPattern(ui.patternSelect.value as BallPatternId);
-    updateReadouts();
-    render();
-  });
-
   ui.collisionsButton.addEventListener("click", () => {
     simulation.setBallCollisionsEnabled(!simulation.collisionsEnabled);
     updateReadouts();
@@ -392,6 +453,18 @@ export function createApp(root: HTMLElement) {
     heightMapEnabled = !heightMapEnabled;
     updateReadouts();
     render();
+  });
+
+  ui.placeModeButton.addEventListener("click", () => {
+    setInteractionMode("place-ball");
+  });
+
+  ui.eraseModeButton.addEventListener("click", () => {
+    setInteractionMode("erase-ball");
+  });
+
+  ui.stampModeButton.addEventListener("click", () => {
+    setInteractionMode("stamp-pattern");
   });
 
   ui.toggleButton.addEventListener("click", () => {
@@ -425,7 +498,11 @@ export function createApp(root: HTMLElement) {
     const x = ((event.clientX - rect.left) / rect.width) * simulation.width;
     const y = ((event.clientY - rect.top) / rect.height) * simulation.height;
 
-    if (!simulation.removeBallAt(x, y)) {
+    if (interactionMode === "erase-ball") {
+      simulation.removeBallAt(x, y);
+    } else if (interactionMode === "stamp-pattern") {
+      simulation.addPattern(ui.patternSelect.value as BallPatternId, x, y);
+    } else {
       simulation.addBallAt(x, y);
     }
 
