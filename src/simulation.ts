@@ -178,10 +178,29 @@ export class Simulation {
   }
 
   addPattern(patternId: BallPatternId, centerX = this.config.width / 2, centerY = this.config.height / 2) {
-    const spacing = Math.max(this.config.defaultBallRadius * 2.6, this.config.defaultBallRadius * 2 + 2);
+    const offsets = getPatternOffsets(patternId);
+    const radius = this.config.defaultBallRadius;
+    const availableHalfWidth = Math.max(0, Math.min(centerX - radius, this.config.width - centerX - radius));
+    const availableHalfHeight = Math.max(0, Math.min(centerY - radius, this.config.height - centerY - radius));
+    const maxOffsetX = Math.max(...offsets.map((offset) => Math.abs(offset.x)), 0);
+    const maxOffsetY = Math.max(...offsets.map((offset) => Math.abs(offset.y)), 0);
 
-    for (const offset of getPatternOffsets(patternId, spacing)) {
-      this.addBallAt(centerX + offset.x, centerY + offset.y, 0, 0);
+    let scale = Number.POSITIVE_INFINITY;
+
+    if (maxOffsetX > 0) {
+      scale = Math.min(scale, availableHalfWidth / maxOffsetX);
+    }
+
+    if (maxOffsetY > 0) {
+      scale = Math.min(scale, availableHalfHeight / maxOffsetY);
+    }
+
+    if (!Number.isFinite(scale)) {
+      scale = 0;
+    }
+
+    for (const offset of offsets) {
+      this.addBallAt(centerX + offset.x * scale, centerY + offset.y * scale, 0, 0);
     }
   }
 

@@ -103,6 +103,21 @@ describe("Simulation ball management", () => {
     }
   });
 
+  test("patterns scale to fill as much of the canvas as possible", () => {
+    const simulation = createSimulation();
+
+    simulation.addPattern("horizontal-line");
+    const horizontalXs = simulation.getBalls().map((ball) => ball.x);
+    expect(Math.min(...horizontalXs)).toBe(7);
+    expect(Math.max(...horizontalXs)).toBe(893);
+
+    simulation.reset();
+    simulation.addPattern("vertical-line");
+    const verticalYs = simulation.getBalls().map((ball) => ball.y);
+    expect(Math.min(...verticalYs)).toBe(7);
+    expect(Math.max(...verticalYs)).toBe(893);
+  });
+
   test("disabled ball collisions let balls pass through each other", () => {
     const simulation = createSimulation();
 

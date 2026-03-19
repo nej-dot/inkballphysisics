@@ -63,15 +63,10 @@ function createCircle(count: number, radius: number) {
   });
 }
 
-export function getPatternOffsets(patternId: BallPatternId, spacing: number) {
-  const scalePoint = (point: Point) => ({
-    x: point.x * spacing,
-    y: point.y * spacing,
-  });
-
+export function getPatternOffsets(patternId: BallPatternId) {
   switch (patternId) {
     case "circle":
-      return createCircle(12, 2.4).map(scalePoint);
+      return createCircle(12, 1);
     case "cross":
       return [
         { x: 0, y: -2 },
@@ -83,14 +78,14 @@ export function getPatternOffsets(patternId: BallPatternId, spacing: number) {
         { x: 2, y: 0 },
         { x: 0, y: 1 },
         { x: 0, y: 2 },
-      ].map(scalePoint);
+      ];
     case "horizontal-line":
-      return createLine(7, 1, 0).map(scalePoint);
+      return createLine(7, 1, 0);
     case "vertical-line":
-      return createLine(7, 0, 1).map(scalePoint);
+      return createLine(7, 0, 1);
     case "triangle":
-      return createTriangle(4).map(scalePoint);
+      return createTriangle(4);
     case "square":
-      return createSquare(3).map(scalePoint);
+      return createSquare(3);
   }
 }

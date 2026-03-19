@@ -13,7 +13,7 @@ import { CanvasRenderer } from "./rendering";
 import { Simulation } from "./simulation";
 import { SURFACES } from "./surfaces";
 import { buildSvgDocument, downloadSvg } from "./svg";
-import type { BallPatternId, SurfaceId } from "./types";
+import type { BallPatternId, SurfaceContext, SurfaceId } from "./types";
 
 const FIXED_TIMESTEP_SECONDS = 1 / 120;
 const SIMULATION_SIZE = 900;
@@ -124,6 +124,10 @@ export function createApp(root: HTMLElement) {
             <button type="button" data-collisions>Collisions On</button>
             <button type="button" data-trails>Trails On</button>
           </div>
+          <div class="button-row button-row-single">
+            <button type="button" data-height-map>Height Map Off</button>
+          </div>
+          <p class="control-hint">Analysis only. This view does not change the simulation or SVG export.</p>
         </section>
 
         <section class="control-section">
@@ -154,6 +158,7 @@ export function createApp(root: HTMLElement) {
   const addBallButton = root.querySelector<HTMLButtonElement>("[data-add-ball]");
   const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
   const collisionsButton = root.querySelector<HTMLButtonElement>("[data-collisions]");
+  const heightMapButton = root.querySelector<HTMLButtonElement>("[data-height-map]");
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-toggle]");
   const resetButton = root.querySelector<HTMLButtonElement>("[data-reset]");
   const patternSelect = root.querySelector<HTMLSelectElement>("[data-pattern]");
@@ -178,6 +183,7 @@ export function createApp(root: HTMLElement) {
     !addBallButton ||
     !removeBallButton ||
     !collisionsButton ||
+    !heightMapButton ||
     !toggleButton ||
     !resetButton ||
     !patternSelect ||
@@ -205,6 +211,7 @@ export function createApp(root: HTMLElement) {
     addBallButton,
     removeBallButton,
     collisionsButton,
+    heightMapButton,
     toggleButton,
     resetButton,
     patternSelect,
@@ -259,6 +266,7 @@ export function createApp(root: HTMLElement) {
   const renderer = new CanvasRenderer(ui.canvas, simulation.width, simulation.height);
   let running = false;
   let trailsEnabled = true;
+  let heightMapEnabled = false;
   let trailStrokeWidth = translateSliderValue(Number(ui.trailWeightInput.value), TRAIL_WEIGHT_MAPPING);
   let accumulator = 0;
   let lastTimestamp = performance.now();
@@ -267,6 +275,16 @@ export function createApp(root: HTMLElement) {
     for (let index = 0; index < INITIAL_BALL_COUNT; index += 1) {
       simulation.addBall();
     }
+  }
+
+  function getSurfaceContext(): SurfaceContext {
+    return {
+      width: simulation.width,
+      height: simulation.height,
+      scale: Math.min(simulation.width, simulation.height) * 0.42,
+      centerX: simulation.width / 2,
+      centerY: simulation.height / 2,
+    };
   }
 
   function updateReadouts() {
@@ -282,6 +300,8 @@ export function createApp(root: HTMLElement) {
     ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
     ui.trailsButton.setAttribute("aria-pressed", trailsEnabled ? "true" : "false");
+    ui.heightMapButton.textContent = heightMapEnabled ? "Height Map On" : "Height Map Off";
+    ui.heightMapButton.setAttribute("aria-pressed", heightMapEnabled ? "true" : "false");
     ui.removeBallButton.disabled = simulation.ballCount === 0;
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
     ui.surfaceDescription.textContent = simulation.surface.description;
@@ -289,7 +309,16 @@ export function createApp(root: HTMLElement) {
 
   function render() {
     renderer.resize();
-    renderer.render(simulation.getBalls(), trailsEnabled, trailStrokeWidth);
+    renderer.render(simulation.getBalls(), {
+      showTrails: trailsEnabled,
+      trailStrokeWidth,
+      heightMap: heightMapEnabled
+        ? {
+            surface: simulation.surface,
+            context: getSurfaceContext(),
+          }
+        : undefined,
+    });
   }
 
   function frame(timestamp: number) {
@@ -355,6 +384,12 @@ export function createApp(root: HTMLElement) {
 
   ui.collisionsButton.addEventListener("click", () => {
     simulation.setBallCollisionsEnabled(!simulation.collisionsEnabled);
+    updateReadouts();
+    render();
+  });
+
+  ui.heightMapButton.addEventListener("click", () => {
+    heightMapEnabled = !heightMapEnabled;
     updateReadouts();
     render();
   });

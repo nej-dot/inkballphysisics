@@ -119,6 +119,12 @@ input[type="range"] {
   color: rgba(17, 17, 17, 0.75);
 }
 
+.control-hint {
+  margin: 0;
+  font-size: 0.82rem;
+  color: rgba(17, 17, 17, 0.68);
+}
+
 .panel-title {
   margin: 0;
   font-size: 1.4rem;
