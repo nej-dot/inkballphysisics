@@ -30,8 +30,8 @@ describe("Control mappings", () => {
 
   test("trail weight slider supports lighter and heavier strokes", () => {
     expect(translateSliderValue(1, TRAIL_WEIGHT_MAPPING)).toBe(0.25);
-    expect(translateSliderValue(20, TRAIL_WEIGHT_MAPPING)).toBe(4);
-    expect(translateSimulationValue(1.15, TRAIL_WEIGHT_MAPPING)).toBeCloseTo(5.56, 2);
+    expect(translateSliderValue(100, TRAIL_WEIGHT_MAPPING)).toBe(4);
+    expect(translateSimulationValue(1.15, TRAIL_WEIGHT_MAPPING)).toBeCloseTo(24.76, 2);
   });
 
   test("simulation values can be translated back into slider values", () => {

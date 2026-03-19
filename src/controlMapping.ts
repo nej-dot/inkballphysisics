@@ -28,7 +28,7 @@ export const BALL_SIZE_MAPPING: SliderMapping = {
 
 export const TRAIL_WEIGHT_MAPPING: SliderMapping = {
   uiMin: 1,
-  uiMax: 20,
+  uiMax: 100,
   simulationMin: 0.25,
   simulationMax: 4,
 };

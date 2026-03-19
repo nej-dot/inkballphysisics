@@ -32,10 +32,6 @@ const DEFAULT_TRAIL_WEIGHT_SLIDER_VALUE = Math.round(
 
 type InteractionMode = "place-ball" | "erase-ball" | "stamp-pattern";
 
-function formatNumber(value: number, digits = 2) {
-  return value.toFixed(digits).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1");
-}
-
 export function createApp(root: HTMLElement) {
   root.innerHTML = `
     <main class="shell">
@@ -362,14 +358,10 @@ export function createApp(root: HTMLElement) {
   }
 
   function updateReadouts() {
-    const damping = translateSliderValue(Number(ui.dampingInput.value), DAMPING_MAPPING);
-    const gravity = translateSliderValue(Number(ui.gravityInput.value), GRAVITY_MAPPING);
-    const ballSize = translateSliderValue(Number(ui.sizeInput.value), BALL_SIZE_MAPPING);
-
-    ui.dampingValue.value = formatNumber(damping, 1);
-    ui.gravityValue.value = `${Math.round(gravity).toLocaleString()}`;
-    ui.sizeValue.value = `${Math.round(ballSize)} px`;
-    ui.trailWeightValue.value = formatNumber(trailStrokeWidth, 2);
+    ui.dampingValue.value = `${Math.round(Number(ui.dampingInput.value))}`;
+    ui.gravityValue.value = `${Math.round(Number(ui.gravityInput.value))}`;
+    ui.sizeValue.value = `${Math.round(Number(ui.sizeInput.value))}`;
+    ui.trailWeightValue.value = `${Math.round(Number(ui.trailWeightInput.value))}`;
     ui.statusLabel.textContent = running ? "Running" : "Paused";
     ui.statusLabel.dataset.state = running ? "running" : "paused";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
