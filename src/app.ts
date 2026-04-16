@@ -41,15 +41,54 @@ type InteractionMode =
 export function createApp(root: HTMLElement) {
   root.innerHTML = `
     <main class="shell">
-      <div class="mobile-controls-backdrop" data-mobile-controls-backdrop hidden></div>
+      <div class="sidebar-backdrop" data-sidebar-backdrop hidden></div>
+
+      <div class="workspace-panel">
+        <div class="drawing-panel">
+          <canvas class="drawing-canvas" width="${SIMULATION_SIZE}" height="${SIMULATION_SIZE}" data-canvas></canvas>
+        </div>
+
+        <div class="floating-toolbar">
+          <button type="button" class="toolbar-brand" data-sidebar-toggle aria-expanded="false" aria-label="Open controls">
+            Inkball
+          </button>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" data-toggle>Start</button>
+            <button type="button" data-reset>Reset</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" data-mode-place>Place</button>
+            <button type="button" data-mode-erase>Erase</button>
+            <button type="button" data-mode-stamp>Stamp</button>
+            <button type="button" data-mode-attractor>Attractor</button>
+            <button type="button" data-mode-repellor>Repellor</button>
+            <button type="button" data-mode-generator>Generator</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <button type="button" data-export>Export SVG</button>
+        </div>
+
+        <div class="floating-status">
+          <span class="status-pill" data-status>Paused</span>
+          <span class="status-pill" data-integrator>Integrator: Euler</span>
+          <span class="status-pill" data-ball-count>0 balls</span>
+          <span class="status-pill" data-mode-label>Tool: Place Ball</span>
+          <span class="status-pill surface-pill" data-surface-description></span>
+        </div>
+
+        <p class="canvas-note" data-canvas-note></p>
+      </div>
+
       <aside class="side-panel controls-panel">
         <div class="panel-heading">
-          <div class="controls-mobile-bar">
-            <div class="panel-heading-copy">
+          <div class="panel-heading-inner">
+            <div>
               <p class="panel-eyebrow">Inkball Physics</p>
               <h1 class="panel-title">Controls</h1>
             </div>
-            <button type="button" class="mobile-only mobile-close-button" data-mobile-controls-close>Close</button>
+            <button type="button" class="panel-close" data-sidebar-close aria-label="Close controls">&#x2715;</button>
           </div>
           <p class="panel-copy">Adjust the motion, then place balls directly on the canvas.</p>
         </div>
@@ -103,11 +142,7 @@ export function createApp(root: HTMLElement) {
         </section>
 
         <section class="control-section">
-          <p class="section-label">Simulation</p>
-          <div class="button-row button-row-primary">
-            <button type="button" class="primary-action" data-toggle>Start</button>
-            <button type="button" data-reset>Reset</button>
-          </div>
+          <p class="section-label">Balls</p>
           <div class="button-row">
             <button type="button" data-add-ball>Add Ball</button>
             <button type="button" data-remove-ball>Remove Ball</button>
@@ -120,7 +155,7 @@ export function createApp(root: HTMLElement) {
             <span>Preset</span>
             <select data-pattern></select>
           </label>
-          <p class="control-hint">Choose a preset, then use the Stamp tool on the canvas to place it where you want.</p>
+          <p class="control-hint">Choose a preset, then use the Stamp tool on the canvas to place it.</p>
         </section>
 
         <section class="control-section">
@@ -140,64 +175,19 @@ export function createApp(root: HTMLElement) {
             <button type="button" data-collisions>Collisions On</button>
             <button type="button" data-trails>Trails On</button>
           </div>
-        </section>
-
-        <section class="control-section">
-          <p class="section-label">Export</p>
-          <div class="button-row">
-            <button type="button" data-export>Export SVG</button>
+          <div class="button-row button-row-single">
+            <button type="button" data-height-map>Height Map</button>
           </div>
         </section>
       </aside>
-
-      <section class="workspace-panel">
-        <div class="canvas-header">
-          <div class="status-strip">
-            <span class="status-pill" data-status>Paused</span>
-            <span class="status-pill" data-integrator>Integrator: Euler</span>
-            <span class="status-pill" data-ball-count>0 balls</span>
-            <span class="status-pill" data-mode-label>Tool: Place Ball</span>
-            <span class="status-pill surface-pill" data-surface-description></span>
-          </div>
-          <div class="mobile-quick-actions">
-            <button type="button" class="mobile-only" data-mobile-toggle>Start</button>
-            <button type="button" class="mobile-only" data-mobile-controls-toggle>Controls</button>
-          </div>
-          <div class="stage-toolbar">
-            <div class="stage-toolbar-group">
-              <p class="toolbar-label">Canvas Tool</p>
-              <div class="tool-button-row tool-button-row-wide">
-                <button type="button" data-mode-place>Place Ball</button>
-                <button type="button" data-mode-erase>Erase</button>
-                <button type="button" data-mode-stamp>Stamp</button>
-                <button type="button" data-mode-attractor>Attractor</button>
-                <button type="button" data-mode-repellor>Repellor</button>
-                <button type="button" data-mode-generator>Generator</button>
-              </div>
-            </div>
-            <div class="stage-toolbar-group stage-toolbar-group-compact">
-              <p class="toolbar-label">Overlay</p>
-              <div class="tool-button-row tool-button-row-single">
-                <button type="button" data-height-map>Height Map</button>
-              </div>
-              <p class="control-hint">Analysis only. The overlay does not affect the simulation or SVG export.</p>
-            </div>
-          </div>
-          <p class="canvas-note" data-canvas-note></p>
-        </div>
-        <section class="drawing-panel">
-          <canvas class="drawing-canvas" width="${SIMULATION_SIZE}" height="${SIMULATION_SIZE}" data-canvas></canvas>
-        </section>
-      </section>
     </main>
   `;
 
   const surfaceSelect = root.querySelector<HTMLSelectElement>("[data-surface]");
   const shell = root.querySelector<HTMLElement>(".shell");
-  const mobileControlsBackdrop = root.querySelector<HTMLElement>("[data-mobile-controls-backdrop]");
-  const mobileControlsToggleButton = root.querySelector<HTMLButtonElement>("[data-mobile-controls-toggle]");
-  const mobileControlsCloseButton = root.querySelector<HTMLButtonElement>("[data-mobile-controls-close]");
-  const mobileToggleButton = root.querySelector<HTMLButtonElement>("[data-mobile-toggle]");
+  const sidebarBackdrop = root.querySelector<HTMLElement>("[data-sidebar-backdrop]");
+  const sidebarToggleButton = root.querySelector<HTMLButtonElement>("[data-sidebar-toggle]");
+  const sidebarCloseButton = root.querySelector<HTMLButtonElement>("[data-sidebar-close]");
   const addBallButton = root.querySelector<HTMLButtonElement>("[data-add-ball]");
   const removeBallButton = root.querySelector<HTMLButtonElement>("[data-remove-ball]");
   const collisionsButton = root.querySelector<HTMLButtonElement>("[data-collisions]");
@@ -232,10 +222,9 @@ export function createApp(root: HTMLElement) {
 
   if (
     !shell ||
-    !mobileControlsBackdrop ||
-    !mobileControlsToggleButton ||
-    !mobileControlsCloseButton ||
-    !mobileToggleButton ||
+    !sidebarBackdrop ||
+    !sidebarToggleButton ||
+    !sidebarCloseButton ||
     !surfaceSelect ||
     !addBallButton ||
     !removeBallButton ||
@@ -274,10 +263,9 @@ export function createApp(root: HTMLElement) {
 
   const ui = {
     shell,
-    mobileControlsBackdrop,
-    mobileControlsToggleButton,
-    mobileControlsCloseButton,
-    mobileToggleButton,
+    sidebarBackdrop,
+    sidebarToggleButton,
+    sidebarCloseButton,
     surfaceSelect,
     addBallButton,
     removeBallButton,
@@ -347,7 +335,7 @@ export function createApp(root: HTMLElement) {
   let running = false;
   let trailsEnabled = true;
   let heightMapEnabled = false;
-  let mobileControlsOpen = false;
+  let sidebarOpen = false;
   let interactionMode: InteractionMode = "place-ball";
   let trailStrokeWidth = translateSliderValue(Number(ui.trailWeightInput.value), TRAIL_WEIGHT_MAPPING);
   let accumulator = 0;
@@ -412,12 +400,11 @@ export function createApp(root: HTMLElement) {
     updateReadouts();
   }
 
-  function setMobileControlsOpen(open: boolean) {
-    mobileControlsOpen = open;
-    ui.shell.dataset.mobileControlsOpen = open ? "true" : "false";
-    ui.mobileControlsToggleButton.setAttribute("aria-expanded", open ? "true" : "false");
-    ui.mobileControlsBackdrop.hidden = !open;
-    document.body.style.overflow = open && window.innerWidth <= 820 ? "hidden" : "";
+  function setSidebarOpen(open: boolean) {
+    sidebarOpen = open;
+    ui.shell.dataset.sidebarOpen = open ? "true" : "false";
+    ui.sidebarToggleButton.setAttribute("aria-expanded", open ? "true" : "false");
+    ui.sidebarBackdrop.hidden = !open;
   }
 
   function updateReadouts() {
@@ -430,8 +417,6 @@ export function createApp(root: HTMLElement) {
     ui.integratorLabel.textContent = simulation.verletIntegrationEnabled ? "Integrator: Verlet" : "Integrator: Euler";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
     ui.toggleButton.setAttribute("aria-pressed", running ? "true" : "false");
-    ui.mobileToggleButton.textContent = running ? "Pause" : "Start";
-    ui.mobileToggleButton.setAttribute("aria-pressed", running ? "true" : "false");
     ui.collisionsButton.textContent = simulation.collisionsEnabled ? "Collisions On" : "Collisions Off";
     ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
@@ -543,16 +528,16 @@ export function createApp(root: HTMLElement) {
     render();
   });
 
-  ui.mobileControlsToggleButton.addEventListener("click", () => {
-    setMobileControlsOpen(!mobileControlsOpen);
+  ui.sidebarToggleButton.addEventListener("click", () => {
+    setSidebarOpen(!sidebarOpen);
   });
 
-  ui.mobileControlsCloseButton.addEventListener("click", () => {
-    setMobileControlsOpen(false);
+  ui.sidebarCloseButton.addEventListener("click", () => {
+    setSidebarOpen(false);
   });
 
-  ui.mobileControlsBackdrop.addEventListener("click", () => {
-    setMobileControlsOpen(false);
+  ui.sidebarBackdrop.addEventListener("click", () => {
+    setSidebarOpen(false);
   });
 
   ui.placeModeButton.addEventListener("click", () => {
@@ -580,11 +565,6 @@ export function createApp(root: HTMLElement) {
   });
 
   ui.toggleButton.addEventListener("click", () => {
-    running = !running;
-    updateReadouts();
-  });
-
-  ui.mobileToggleButton.addEventListener("click", () => {
     running = !running;
     updateReadouts();
   });
@@ -647,8 +627,8 @@ export function createApp(root: HTMLElement) {
   });
 
   window.addEventListener("keydown", (event) => {
-    if (event.code === "Escape" && mobileControlsOpen) {
-      setMobileControlsOpen(false);
+    if (event.code === "Escape" && sidebarOpen) {
+      setSidebarOpen(false);
       return;
     }
 
@@ -672,15 +652,11 @@ export function createApp(root: HTMLElement) {
   });
 
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 820 && mobileControlsOpen) {
-      setMobileControlsOpen(false);
-    }
-
     render();
   });
 
   seedInitialBalls();
-  setMobileControlsOpen(false);
+  setSidebarOpen(false);
   updateReadouts();
   render();
   window.requestAnimationFrame(frame);
