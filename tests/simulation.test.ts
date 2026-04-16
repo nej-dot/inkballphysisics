@@ -2,9 +2,9 @@ import { describe, expect, test } from "bun:test";
 
 import { Simulation } from "../src/simulation";
 import { SURFACES } from "../src/surfaces";
-import type { SurfaceContext } from "../src/types";
+import type { SimulationConfig, SurfaceContext, SurfaceId } from "../src/types";
 
-function createSimulation() {
+function createSimulation(overrides: Partial<SimulationConfig> = {}, surfaceId: SurfaceId = "bowl") {
   return new Simulation(
     {
       width: 900,
@@ -16,8 +16,9 @@ function createSimulation() {
       trailSpacing: 1.8,
       spawnMargin: 64,
       defaultBallRadius: 7,
+      ...overrides,
     },
-    "bowl",
+    surfaceId,
   );
 }
 
@@ -134,6 +135,57 @@ describe("Simulation ball management", () => {
     expect(secondBall).toBeDefined();
     expect(firstBall!.x).toBeGreaterThan(secondBall!.x);
   });
+
+  test("verlet integration can be switched on and matches constant-acceleration motion", () => {
+    const simulation = createSimulation({ gravityStrength: 378 }, "tilted-plane");
+
+    simulation.addBallAt(450, 450, 20, -10);
+    simulation.setVerletIntegrationEnabled(true);
+
+    const [ball] = simulation.getBalls();
+    expect(ball).toBeDefined();
+
+    simulation.step(1);
+
+    expect(simulation.verletIntegrationEnabled).toBe(true);
+    expect(ball!.x).toBeCloseTo(469.725, 6);
+    expect(ball!.y).toBeCloseTo(439.89, 6);
+    expect(ball!.vx).toBeCloseTo(19.45, 6);
+    expect(ball!.vy).toBeCloseTo(-10.22, 6);
+  });
+
+  test("turning verlet off falls back to the original semi-implicit euler step", () => {
+    const simulation = createSimulation({ gravityStrength: 378 }, "tilted-plane");
+
+    simulation.addBallAt(450, 450, 20, -10);
+    simulation.setVerletIntegrationEnabled(true);
+    simulation.setVerletIntegrationEnabled(false);
+
+    const [ball] = simulation.getBalls();
+    expect(ball).toBeDefined();
+
+    simulation.step(1);
+
+    expect(simulation.verletIntegrationEnabled).toBe(false);
+    expect(ball!.x).toBeCloseTo(469.45, 6);
+    expect(ball!.y).toBeCloseTo(439.78, 6);
+    expect(ball!.vx).toBeCloseTo(19.45, 6);
+    expect(ball!.vy).toBeCloseTo(-10.22, 6);
+  });
+
+  test("erase mode can remove map objects before overlapping balls", () => {
+    const simulation = createSimulation({}, "flat");
+
+    simulation.addBallAt(300, 300, 0, 0);
+    simulation.addGenerator(300, 300);
+
+    expect(simulation.removeElementAt(300, 300)).toBe(true);
+    expect(simulation.getMapObjects()).toHaveLength(0);
+    expect(simulation.ballCount).toBe(1);
+
+    expect(simulation.removeElementAt(300, 300)).toBe(true);
+    expect(simulation.ballCount).toBe(0);
+  });
 });
 
 describe("Simulation trails", () => {
@@ -190,6 +242,72 @@ describe("Simulation trails", () => {
   });
 });
 
+describe("Simulation map objects", () => {
+  test("attractors pull balls toward their position on the flat surface", () => {
+    const simulation = createSimulation({}, "flat");
+
+    simulation.addBallAt(300, 450, 0, 0);
+    simulation.addAttractor(600, 450);
+
+    const [ball] = simulation.getBalls();
+    expect(ball).toBeDefined();
+
+    simulation.step(0.5);
+
+    expect(ball!.x).toBeGreaterThan(300);
+    expect(ball!.vx).toBeGreaterThan(0);
+  });
+
+  test("repellors push balls away from their position on the flat surface", () => {
+    const simulation = createSimulation({}, "flat");
+
+    simulation.addBallAt(300, 450, 0, 0);
+    simulation.addRepellor(600, 450);
+
+    const [ball] = simulation.getBalls();
+    expect(ball).toBeDefined();
+
+    simulation.step(0.5);
+
+    expect(ball!.x).toBeLessThan(300);
+    expect(ball!.vx).toBeLessThan(0);
+  });
+
+  test("generators emit one stationary ball per second of simulation time", () => {
+    const simulation = createSimulation({}, "flat");
+
+    simulation.addGenerator(450, 450);
+
+    simulation.step(0.99);
+    expect(simulation.ballCount).toBe(0);
+
+    simulation.step(0.02);
+    expect(simulation.ballCount).toBe(1);
+
+    const [ball] = simulation.getBalls();
+    expect(ball).toBeDefined();
+    expect(ball!.vx).toBe(0);
+    expect(ball!.vy).toBe(0);
+  });
+
+  test("reset clears balls but keeps placed map objects and generator timing", () => {
+    const simulation = createSimulation({}, "flat");
+
+    simulation.addGenerator(450, 450);
+    simulation.step(0.75);
+    simulation.reset();
+
+    expect(simulation.ballCount).toBe(0);
+    expect(simulation.getMapObjects()).toHaveLength(1);
+
+    simulation.step(0.5);
+    expect(simulation.ballCount).toBe(0);
+
+    simulation.step(0.5);
+    expect(simulation.ballCount).toBe(1);
+  });
+});
+
 describe("Surface presets", () => {
   test("surface ids remain unique", () => {
     const ids = SURFACES.map((surface) => surface.id);
@@ -222,5 +340,25 @@ describe("Surface presets", () => {
         expect(Number.isFinite(gradient.dy)).toBe(true);
       }
     }
+  });
+
+  test("the flat surface has no height field", () => {
+    const flatSurface = SURFACES.find((surface) => surface.id === "flat");
+
+    expect(flatSurface).toBeDefined();
+    expect(flatSurface!.heightAt(100, 200, {
+      width: 900,
+      height: 900,
+      scale: 900 * 0.42,
+      centerX: 450,
+      centerY: 450,
+    })).toBe(0);
+    expect(flatSurface!.gradientAt(100, 200, {
+      width: 900,
+      height: 900,
+      scale: 900 * 0.42,
+      centerX: 450,
+      centerY: 450,
+    })).toEqual({ dx: 0, dy: 0 });
   });
 });

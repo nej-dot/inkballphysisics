@@ -30,7 +30,13 @@ const DEFAULT_TRAIL_WEIGHT_SLIDER_VALUE = Math.round(
   translateSimulationValue(DEFAULT_TRAIL_WEIGHT, TRAIL_WEIGHT_MAPPING),
 );
 
-type InteractionMode = "place-ball" | "erase-ball" | "stamp-pattern";
+type InteractionMode =
+  | "place-ball"
+  | "erase-ball"
+  | "stamp-pattern"
+  | "place-attractor"
+  | "place-repellor"
+  | "place-generator";
 
 export function createApp(root: HTMLElement) {
   root.innerHTML = `
@@ -90,6 +96,10 @@ export function createApp(root: HTMLElement) {
               value="${DEFAULT_BALL_SIZE_SLIDER_VALUE}"
             />
           </label>
+          <div class="button-row button-row-single">
+            <button type="button" data-verlet>Verlet Off</button>
+          </div>
+          <p class="control-hint">Switch between the original Euler stepper and velocity Verlet integration.</p>
         </section>
 
         <section class="control-section">
@@ -144,8 +154,9 @@ export function createApp(root: HTMLElement) {
         <div class="canvas-header">
           <div class="status-strip">
             <span class="status-pill" data-status>Paused</span>
+            <span class="status-pill" data-integrator>Integrator: Euler</span>
             <span class="status-pill" data-ball-count>0 balls</span>
-            <span class="status-pill" data-mode-label>Tool: Place</span>
+            <span class="status-pill" data-mode-label>Tool: Place Ball</span>
             <span class="status-pill surface-pill" data-surface-description></span>
           </div>
           <div class="mobile-quick-actions">
@@ -155,10 +166,13 @@ export function createApp(root: HTMLElement) {
           <div class="stage-toolbar">
             <div class="stage-toolbar-group">
               <p class="toolbar-label">Canvas Tool</p>
-              <div class="tool-button-row">
-                <button type="button" data-mode-place>Place</button>
+              <div class="tool-button-row tool-button-row-wide">
+                <button type="button" data-mode-place>Place Ball</button>
                 <button type="button" data-mode-erase>Erase</button>
-                <button type="button" data-mode-stamp>Stamp Pattern</button>
+                <button type="button" data-mode-stamp>Stamp</button>
+                <button type="button" data-mode-attractor>Attractor</button>
+                <button type="button" data-mode-repellor>Repellor</button>
+                <button type="button" data-mode-generator>Generator</button>
               </div>
             </div>
             <div class="stage-toolbar-group stage-toolbar-group-compact">
@@ -191,10 +205,14 @@ export function createApp(root: HTMLElement) {
   const placeModeButton = root.querySelector<HTMLButtonElement>("[data-mode-place]");
   const eraseModeButton = root.querySelector<HTMLButtonElement>("[data-mode-erase]");
   const stampModeButton = root.querySelector<HTMLButtonElement>("[data-mode-stamp]");
+  const attractorModeButton = root.querySelector<HTMLButtonElement>("[data-mode-attractor]");
+  const repellorModeButton = root.querySelector<HTMLButtonElement>("[data-mode-repellor]");
+  const generatorModeButton = root.querySelector<HTMLButtonElement>("[data-mode-generator]");
   const toggleButton = root.querySelector<HTMLButtonElement>("[data-toggle]");
   const resetButton = root.querySelector<HTMLButtonElement>("[data-reset]");
   const patternSelect = root.querySelector<HTMLSelectElement>("[data-pattern]");
   const trailsButton = root.querySelector<HTMLButtonElement>("[data-trails]");
+  const verletButton = root.querySelector<HTMLButtonElement>("[data-verlet]");
   const exportButton = root.querySelector<HTMLButtonElement>("[data-export]");
   const dampingInput = root.querySelector<HTMLInputElement>("[data-damping]");
   const gravityInput = root.querySelector<HTMLInputElement>("[data-gravity]");
@@ -205,6 +223,7 @@ export function createApp(root: HTMLElement) {
   const sizeValue = root.querySelector<HTMLOutputElement>("[data-size-value]");
   const trailWeightValue = root.querySelector<HTMLOutputElement>("[data-trail-weight-value]");
   const statusLabel = root.querySelector<HTMLElement>("[data-status]");
+  const integratorLabel = root.querySelector<HTMLElement>("[data-integrator]");
   const ballCountLabel = root.querySelector<HTMLElement>("[data-ball-count]");
   const modeLabel = root.querySelector<HTMLElement>("[data-mode-label]");
   const surfaceDescription = root.querySelector<HTMLElement>("[data-surface-description]");
@@ -225,10 +244,14 @@ export function createApp(root: HTMLElement) {
     !placeModeButton ||
     !eraseModeButton ||
     !stampModeButton ||
+    !attractorModeButton ||
+    !repellorModeButton ||
+    !generatorModeButton ||
     !toggleButton ||
     !resetButton ||
     !patternSelect ||
     !trailsButton ||
+    !verletButton ||
     !exportButton ||
     !dampingInput ||
     !gravityInput ||
@@ -239,6 +262,7 @@ export function createApp(root: HTMLElement) {
     !sizeValue ||
     !trailWeightValue ||
     !statusLabel ||
+    !integratorLabel ||
     !ballCountLabel ||
     !modeLabel ||
     !surfaceDescription ||
@@ -262,10 +286,14 @@ export function createApp(root: HTMLElement) {
     placeModeButton,
     eraseModeButton,
     stampModeButton,
+    attractorModeButton,
+    repellorModeButton,
+    generatorModeButton,
     toggleButton,
     resetButton,
     patternSelect,
     trailsButton,
+    verletButton,
     exportButton,
     dampingInput,
     gravityInput,
@@ -276,6 +304,7 @@ export function createApp(root: HTMLElement) {
     sizeValue,
     trailWeightValue,
     statusLabel,
+    integratorLabel,
     ballCountLabel,
     modeLabel,
     surfaceDescription,
@@ -344,6 +373,40 @@ export function createApp(root: HTMLElement) {
     return BALL_PATTERNS.find((pattern) => pattern.id === ui.patternSelect.value)?.label ?? "Pattern";
   }
 
+  function getModeLabelText() {
+    switch (interactionMode) {
+      case "erase-ball":
+        return "Tool: Erase";
+      case "stamp-pattern":
+        return `Tool: Stamp ${getSelectedPatternLabel()}`;
+      case "place-attractor":
+        return "Tool: Attractor";
+      case "place-repellor":
+        return "Tool: Repellor";
+      case "place-generator":
+        return "Tool: Generator";
+      default:
+        return "Tool: Place Ball";
+    }
+  }
+
+  function getCanvasNoteText() {
+    switch (interactionMode) {
+      case "erase-ball":
+        return "Click a ball, attractor, repellor, or generator to remove it. Press Space to start or pause.";
+      case "stamp-pattern":
+        return `Click the canvas to stamp the ${getSelectedPatternLabel()} preset. Press Space to start or pause.`;
+      case "place-attractor":
+        return "Click the canvas to place an attractor point. Press Space to start or pause.";
+      case "place-repellor":
+        return "Click the canvas to place a repellor point. Press Space to start or pause.";
+      case "place-generator":
+        return "Click the canvas to place a generator that emits one ball per second. Press Space to start or pause.";
+      default:
+        return "Click the canvas to place a ball. Press Space to start or pause.";
+    }
+  }
+
   function setInteractionMode(mode: InteractionMode) {
     interactionMode = mode;
     updateReadouts();
@@ -364,6 +427,7 @@ export function createApp(root: HTMLElement) {
     ui.trailWeightValue.value = `${Math.round(Number(ui.trailWeightInput.value))}`;
     ui.statusLabel.textContent = running ? "Running" : "Paused";
     ui.statusLabel.dataset.state = running ? "running" : "paused";
+    ui.integratorLabel.textContent = simulation.verletIntegrationEnabled ? "Integrator: Verlet" : "Integrator: Euler";
     ui.toggleButton.textContent = running ? "Pause" : "Start";
     ui.toggleButton.setAttribute("aria-pressed", running ? "true" : "false");
     ui.mobileToggleButton.textContent = running ? "Pause" : "Start";
@@ -372,30 +436,25 @@ export function createApp(root: HTMLElement) {
     ui.collisionsButton.setAttribute("aria-pressed", simulation.collisionsEnabled ? "true" : "false");
     ui.trailsButton.textContent = trailsEnabled ? "Trails On" : "Trails Off";
     ui.trailsButton.setAttribute("aria-pressed", trailsEnabled ? "true" : "false");
+    ui.verletButton.textContent = simulation.verletIntegrationEnabled ? "Verlet On" : "Verlet Off";
+    ui.verletButton.setAttribute("aria-pressed", simulation.verletIntegrationEnabled ? "true" : "false");
     ui.heightMapButton.setAttribute("aria-pressed", heightMapEnabled ? "true" : "false");
     ui.placeModeButton.setAttribute("aria-pressed", interactionMode === "place-ball" ? "true" : "false");
     ui.eraseModeButton.setAttribute("aria-pressed", interactionMode === "erase-ball" ? "true" : "false");
     ui.stampModeButton.setAttribute("aria-pressed", interactionMode === "stamp-pattern" ? "true" : "false");
+    ui.attractorModeButton.setAttribute("aria-pressed", interactionMode === "place-attractor" ? "true" : "false");
+    ui.repellorModeButton.setAttribute("aria-pressed", interactionMode === "place-repellor" ? "true" : "false");
+    ui.generatorModeButton.setAttribute("aria-pressed", interactionMode === "place-generator" ? "true" : "false");
     ui.removeBallButton.disabled = simulation.ballCount === 0;
     ui.trailWeightInput.disabled = !trailsEnabled;
     ui.trailWeightInput
       .closest(".control-group")
       ?.setAttribute("data-disabled", trailsEnabled ? "false" : "true");
     ui.ballCountLabel.textContent = `${simulation.ballCount} ${simulation.ballCount === 1 ? "ball" : "balls"}`;
-    ui.modeLabel.textContent =
-      interactionMode === "place-ball"
-        ? "Tool: Place"
-        : interactionMode === "erase-ball"
-          ? "Tool: Erase"
-          : `Tool: Stamp ${getSelectedPatternLabel()}`;
+    ui.modeLabel.textContent = getModeLabelText();
     ui.surfaceDescription.textContent = simulation.surface.description;
     ui.canvas.dataset.mode = interactionMode;
-    ui.canvasNote.textContent =
-      interactionMode === "place-ball"
-        ? "Click the canvas to place a ball. Press Space to start or pause."
-        : interactionMode === "erase-ball"
-          ? "Click a ball to remove it. Press Space to start or pause."
-          : `Click the canvas to stamp the ${getSelectedPatternLabel()} preset. Press Space to start or pause.`;
+    ui.canvasNote.textContent = getCanvasNoteText();
   }
 
   function render() {
@@ -403,6 +462,7 @@ export function createApp(root: HTMLElement) {
     renderer.render(simulation.getBalls(), {
       showTrails: trailsEnabled,
       trailStrokeWidth,
+      mapObjects: simulation.getMapObjects(),
       heightMap: heightMapEnabled
         ? {
             surface: simulation.surface,
@@ -507,6 +567,18 @@ export function createApp(root: HTMLElement) {
     setInteractionMode("stamp-pattern");
   });
 
+  ui.attractorModeButton.addEventListener("click", () => {
+    setInteractionMode("place-attractor");
+  });
+
+  ui.repellorModeButton.addEventListener("click", () => {
+    setInteractionMode("place-repellor");
+  });
+
+  ui.generatorModeButton.addEventListener("click", () => {
+    setInteractionMode("place-generator");
+  });
+
   ui.toggleButton.addEventListener("click", () => {
     running = !running;
     updateReadouts();
@@ -533,6 +605,12 @@ export function createApp(root: HTMLElement) {
     render();
   });
 
+  ui.verletButton.addEventListener("click", () => {
+    simulation.setVerletIntegrationEnabled(!simulation.verletIntegrationEnabled);
+    updateReadouts();
+    render();
+  });
+
   ui.exportButton.addEventListener("click", () => {
     const svg = buildSvgDocument(simulation.width, simulation.height, simulation.getBalls(), trailStrokeWidth);
     downloadSvg(`inkball-${simulation.surfacePreset}.svg`, svg);
@@ -543,12 +621,25 @@ export function createApp(root: HTMLElement) {
     const x = ((event.clientX - rect.left) / rect.width) * simulation.width;
     const y = ((event.clientY - rect.top) / rect.height) * simulation.height;
 
-    if (interactionMode === "erase-ball") {
-      simulation.removeBallAt(x, y);
-    } else if (interactionMode === "stamp-pattern") {
-      simulation.addPattern(ui.patternSelect.value as BallPatternId, x, y);
-    } else {
-      simulation.addBallAt(x, y);
+    switch (interactionMode) {
+      case "erase-ball":
+        simulation.removeElementAt(x, y);
+        break;
+      case "stamp-pattern":
+        simulation.addPattern(ui.patternSelect.value as BallPatternId, x, y);
+        break;
+      case "place-attractor":
+        simulation.addAttractor(x, y);
+        break;
+      case "place-repellor":
+        simulation.addRepellor(x, y);
+        break;
+      case "place-generator":
+        simulation.addGenerator(x, y);
+        break;
+      default:
+        simulation.addBallAt(x, y);
+        break;
     }
 
     updateReadouts();

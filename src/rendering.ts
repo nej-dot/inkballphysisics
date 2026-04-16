@@ -1,4 +1,4 @@
-import type { Ball, SurfaceContext, SurfaceDefinition } from "./types";
+import type { Ball, MapObject, SurfaceContext, SurfaceDefinition } from "./types";
 
 const TRAIL_STROKE = "#111111";
 const BALL_STROKE = "#111111";
@@ -19,12 +19,14 @@ interface CanvasRenderOptions {
   showTrails?: boolean;
   trailStrokeWidth?: number;
   heightMap?: HeightMapRenderOptions;
+  mapObjects?: MapObject[];
 }
 
 export class CanvasRenderer {
   private readonly context: CanvasRenderingContext2D;
   private heightMapCacheKey: string | null = null;
   private heightMapCanvas: HTMLCanvasElement | null = null;
+  private heightMapSurface: SurfaceDefinition | null = null;
 
   constructor(private readonly canvas: HTMLCanvasElement, private readonly width: number, private readonly height: number) {
     const context = canvas.getContext("2d");
@@ -50,7 +52,7 @@ export class CanvasRenderer {
   }
 
   render(balls: Ball[], options: CanvasRenderOptions = {}) {
-    const { showTrails = true, trailStrokeWidth = DEFAULT_TRAIL_STROKE_WIDTH, heightMap } = options;
+    const { showTrails = true, trailStrokeWidth = DEFAULT_TRAIL_STROKE_WIDTH, heightMap, mapObjects = [] } = options;
 
     this.context.fillStyle = CANVAS_BACKGROUND;
     this.context.clearRect(0, 0, this.width, this.height);
@@ -63,6 +65,8 @@ export class CanvasRenderer {
     this.context.strokeStyle = "#111111";
     this.context.lineWidth = 1;
     this.context.strokeRect(0.5, 0.5, this.width - 1, this.height - 1);
+
+    this.drawMapObjects(mapObjects);
 
     if (showTrails) {
       this.context.strokeStyle = TRAIL_STROKE;
@@ -98,6 +102,72 @@ export class CanvasRenderer {
     }
   }
 
+  private drawMapObjects(mapObjects: MapObject[]) {
+    for (const object of mapObjects) {
+      if (object.kind === "generator") {
+        this.drawGenerator(object);
+        continue;
+      }
+
+      this.drawForcePoint(object);
+    }
+  }
+
+  private drawForcePoint(object: Extract<MapObject, { kind: "attractor" | "repellor" }>) {
+    this.context.save();
+    this.context.strokeStyle = "rgba(17, 17, 17, 0.24)";
+    this.context.lineWidth = 1;
+    this.context.setLineDash([8, 8]);
+    this.context.beginPath();
+    this.context.arc(object.x, object.y, object.radius, 0, Math.PI * 2);
+    this.context.stroke();
+    this.context.setLineDash([]);
+
+    this.context.fillStyle = object.kind === "attractor" ? "#111111" : "#ffffff";
+    this.context.strokeStyle = "#111111";
+    this.context.lineWidth = 2;
+    this.context.beginPath();
+    this.context.arc(object.x, object.y, 12, 0, Math.PI * 2);
+    this.context.fill();
+    this.context.stroke();
+
+    this.context.beginPath();
+    if (object.kind === "attractor") {
+      this.context.moveTo(object.x - 5, object.y);
+      this.context.lineTo(object.x + 5, object.y);
+      this.context.moveTo(object.x, object.y - 5);
+      this.context.lineTo(object.x, object.y + 5);
+    } else {
+      this.context.moveTo(object.x - 6, object.y);
+      this.context.lineTo(object.x + 6, object.y);
+    }
+    this.context.strokeStyle = object.kind === "attractor" ? "#ffffff" : "#111111";
+    this.context.lineWidth = 2;
+    this.context.stroke();
+    this.context.restore();
+  }
+
+  private drawGenerator(object: Extract<MapObject, { kind: "generator" }>) {
+    this.context.save();
+    this.context.strokeStyle = "#111111";
+    this.context.fillStyle = "#ffffff";
+    this.context.lineWidth = 2;
+    this.context.beginPath();
+    this.context.rect(object.x - 12, object.y - 12, 24, 24);
+    this.context.fill();
+    this.context.stroke();
+
+    this.context.beginPath();
+    this.context.moveTo(object.x - 6, object.y);
+    this.context.lineTo(object.x + 2, object.y);
+    this.context.moveTo(object.x + 2, object.y);
+    this.context.lineTo(object.x - 1, object.y - 3);
+    this.context.moveTo(object.x + 2, object.y);
+    this.context.lineTo(object.x - 1, object.y + 3);
+    this.context.stroke();
+    this.context.restore();
+  }
+
   private drawHeightMap(surface: SurfaceDefinition, surfaceContext: SurfaceContext) {
     const cacheKey = [
       surface.id,
@@ -110,7 +180,7 @@ export class CanvasRenderer {
       this.height,
     ].join(":");
 
-    if (cacheKey !== this.heightMapCacheKey || !this.heightMapCanvas) {
+    if (cacheKey !== this.heightMapCacheKey || this.heightMapSurface !== surface || !this.heightMapCanvas) {
       const canvas = document.createElement("canvas");
       canvas.width = this.width;
       canvas.height = this.height;
@@ -163,6 +233,7 @@ export class CanvasRenderer {
 
       this.heightMapCanvas = canvas;
       this.heightMapCacheKey = cacheKey;
+      this.heightMapSurface = surface;
     }
 
     if (this.heightMapCanvas) {

@@ -1,4 +1,5 @@
-export type SurfaceId =
+export type BuiltInSurfaceId =
+  | "flat"
   | "tilted-plane"
   | "bowl"
   | "funnel"
@@ -8,6 +9,10 @@ export type SurfaceId =
   | "oldschool-pachinko"
   | "invisible-pinball"
   | "funnel-maze";
+
+export type UploadedSurfaceId = "uploaded-height-map";
+
+export type SurfaceId = BuiltInSurfaceId | UploadedSurfaceId;
 
 export type BallPatternId = "circle" | "cross" | "horizontal-line" | "vertical-line" | "triangle" | "square";
 
@@ -32,6 +37,26 @@ export interface Ball {
   trailSegments: Point[][];
 }
 
+export interface ForcePoint {
+  id: number;
+  kind: "attractor" | "repellor";
+  x: number;
+  y: number;
+  strength: number;
+  radius: number;
+}
+
+export interface BallGenerator {
+  id: number;
+  kind: "generator";
+  x: number;
+  y: number;
+  spawnIntervalSeconds: number;
+  elapsedSeconds: number;
+}
+
+export type MapObject = ForcePoint | BallGenerator;
+
 export interface SurfaceContext {
   width: number;
   height: number;
@@ -40,8 +65,8 @@ export interface SurfaceContext {
   centerY: number;
 }
 
-export interface SurfaceDefinition {
-  id: SurfaceId;
+export interface SurfaceDefinition<TId extends string = string> {
+  id: TId;
   label: string;
   description: string;
   heightAt: (x: number, y: number, context: SurfaceContext) => number;

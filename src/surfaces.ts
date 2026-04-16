@@ -1,4 +1,4 @@
-import type { Gradient, SurfaceContext, SurfaceDefinition, SurfaceId } from "./types";
+import type { BuiltInSurfaceId, Gradient, SurfaceContext, SurfaceDefinition } from "./types";
 
 const PACHINKO_PEGS = [
   { x: -0.48, y: -0.7 },
@@ -53,7 +53,14 @@ function gaussianContribution(
   };
 }
 
-export const SURFACES: SurfaceDefinition[] = [
+export const SURFACES: SurfaceDefinition<BuiltInSurfaceId>[] = [
+  {
+    id: "flat",
+    label: "Flat / Clean",
+    description: "A clean map with no built-in height field.",
+    heightAt: () => 0,
+    gradientAt: () => createGradient(0, 0),
+  },
   {
     id: "tilted-plane",
     label: "Tilted Plane",
@@ -223,6 +230,6 @@ export const SURFACES: SurfaceDefinition[] = [
   },
 ];
 
-export function getSurface(surfaceId: SurfaceId): SurfaceDefinition {
+export function getSurface(surfaceId: BuiltInSurfaceId): SurfaceDefinition<BuiltInSurfaceId> {
   return SURFACES.find((surface) => surface.id === surfaceId) ?? SURFACES[0];
 }

@@ -1,12 +1,35 @@
 import { getPatternOffsets } from "./patterns";
+import { UPLOADED_HEIGHT_MAP_SURFACE_ID } from "./imageHeightMap";
 import { getSurface } from "./surfaces";
-import type { Ball, BallPatternId, Point, SimulationConfig, SurfaceContext, SurfaceId } from "./types";
+import type {
+  Ball,
+  BallPatternId,
+  BuiltInSurfaceId,
+  ForcePoint,
+  MapObject,
+  Point,
+  SimulationConfig,
+  SurfaceContext,
+  SurfaceDefinition,
+  SurfaceId,
+  UploadedSurfaceId,
+} from "./types";
 
 const DEFAULT_SEED = 0xdecafbad;
+const DEFAULT_FALLBACK_SURFACE: BuiltInSurfaceId = "funnel";
 const DEFAULT_INITIAL_VELOCITY = {
   vx: 41.87310486828857,
   vy: 15.708513766353324,
 };
+const DEFAULT_FORCE_POINT_RADIUS = 140;
+const DEFAULT_FORCE_POINT_STRENGTH = 320;
+const DEFAULT_GENERATOR_INTERVAL_SECONDS = 1;
+const MAP_OBJECT_HIT_RADIUS = 18;
+
+interface Acceleration {
+  ax: number;
+  ay: number;
+}
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
@@ -35,11 +58,15 @@ export class Simulation {
   private readonly initialSeed: number;
   private rng: () => number;
   private nextBallId = 1;
+  private nextMapObjectId = 1;
   private surfaceId: SurfaceId;
+  private customSurface: SurfaceDefinition<UploadedSurfaceId> | null = null;
   private balls: Ball[] = [];
+  private mapObjects: MapObject[] = [];
   private config: SimulationConfig;
   private trailsEnabled = true;
   private ballCollisionsEnabled = true;
+  private verletEnabled = false;
 
   constructor(config: SimulationConfig, surfaceId: SurfaceId, seed = DEFAULT_SEED) {
     this.config = config;
@@ -64,11 +91,19 @@ export class Simulation {
   }
 
   get surface() {
-    return getSurface(this.surfaceId);
+    if (this.surfaceId === UPLOADED_HEIGHT_MAP_SURFACE_ID && this.customSurface) {
+      return this.customSurface;
+    }
+
+    return getSurface(this.getBuiltInSurfaceId());
   }
 
   get surfacePreset() {
     return this.surfaceId;
+  }
+
+  get hasCustomSurface() {
+    return this.customSurface !== null;
   }
 
   get ballCount() {
@@ -79,8 +114,16 @@ export class Simulation {
     return this.ballCollisionsEnabled;
   }
 
+  get verletIntegrationEnabled() {
+    return this.verletEnabled;
+  }
+
   getBalls() {
     return this.balls;
+  }
+
+  getMapObjects() {
+    return this.mapObjects;
   }
 
   getConfig() {
@@ -88,7 +131,24 @@ export class Simulation {
   }
 
   setSurface(surfaceId: SurfaceId) {
+    if (surfaceId === UPLOADED_HEIGHT_MAP_SURFACE_ID && !this.customSurface) {
+      return;
+    }
+
     this.surfaceId = surfaceId;
+  }
+
+  setCustomSurface(surface: SurfaceDefinition<UploadedSurfaceId>) {
+    this.customSurface = surface;
+    this.surfaceId = surface.id;
+  }
+
+  clearCustomSurface() {
+    this.customSurface = null;
+
+    if (this.surfaceId === UPLOADED_HEIGHT_MAP_SURFACE_ID) {
+      this.surfaceId = DEFAULT_FALLBACK_SURFACE;
+    }
   }
 
   setGravityStrength(value: number) {
@@ -141,10 +201,20 @@ export class Simulation {
     }
   }
 
+  setVerletIntegrationEnabled(enabled: boolean) {
+    this.verletEnabled = enabled;
+  }
+
   reset() {
     this.balls = [];
     this.nextBallId = 1;
     this.rng = createMulberry32(this.initialSeed);
+
+    for (const object of this.mapObjects) {
+      if (object.kind === "generator") {
+        object.elapsedSeconds = 0;
+      }
+    }
   }
 
   addBall(vx = DEFAULT_INITIAL_VELOCITY.vx, vy = DEFAULT_INITIAL_VELOCITY.vy) {
@@ -204,6 +274,26 @@ export class Simulation {
     }
   }
 
+  addAttractor(x: number, y: number) {
+    this.mapObjects.push(this.createForcePoint("attractor", x, y));
+  }
+
+  addRepellor(x: number, y: number) {
+    this.mapObjects.push(this.createForcePoint("repellor", x, y));
+  }
+
+  addGenerator(x: number, y: number) {
+    const clamped = this.clampMapObjectPosition(x, y);
+    this.mapObjects.push({
+      id: this.nextMapObjectId++,
+      kind: "generator",
+      x: clamped.x,
+      y: clamped.y,
+      spawnIntervalSeconds: DEFAULT_GENERATOR_INTERVAL_SECONDS,
+      elapsedSeconds: 0,
+    });
+  }
+
   removeBall() {
     return this.balls.pop() !== undefined;
   }
@@ -223,24 +313,36 @@ export class Simulation {
     return false;
   }
 
+  removeMapObjectAt(x: number, y: number) {
+    for (let index = this.mapObjects.length - 1; index >= 0; index -= 1) {
+      const object = this.mapObjects[index];
+      const hitRadius = object.kind === "generator" ? MAP_OBJECT_HIT_RADIUS : Math.max(16, object.radius * 0.14);
+
+      if (distanceSquared(object, { x, y }) > hitRadius * hitRadius) {
+        continue;
+      }
+
+      this.mapObjects.splice(index, 1);
+      return true;
+    }
+
+    return false;
+  }
+
+  removeElementAt(x: number, y: number) {
+    return this.removeMapObjectAt(x, y) || this.removeBallAt(x, y);
+  }
+
   step(dt: number) {
     const surface = this.surface;
     const minDistanceSquared = this.config.trailSpacing * this.config.trailSpacing;
 
     for (const ball of this.balls) {
-      const slope = surface.gradientAt(ball.x, ball.y, this.context);
-      const ax = -this.config.gravityStrength * slope.dx;
-      const ay = -this.config.gravityStrength * slope.dy;
-
-      ball.vx += ax * dt;
-      ball.vy += ay * dt;
-
-      const dampingScale = 1 / (1 + this.config.damping * dt);
-      ball.vx *= dampingScale;
-      ball.vy *= dampingScale;
-
-      ball.x += ball.vx * dt;
-      ball.y += ball.vy * dt;
+      if (this.verletEnabled) {
+        this.stepBallWithVelocityVerlet(ball, dt, surface);
+      } else {
+        this.stepBallWithSemiImplicitEuler(ball, dt, surface);
+      }
 
       this.resolveBoundaryCollision(ball);
     }
@@ -248,6 +350,8 @@ export class Simulation {
     if (this.ballCollisionsEnabled) {
       this.resolveBallCollisions();
     }
+
+    this.stepGenerators(dt);
 
     for (const ball of this.balls) {
       if (!this.trailsEnabled) {
@@ -272,6 +376,26 @@ export class Simulation {
       radius,
       mass: Math.PI * radius * radius,
       trailSegments: [[{ x, y }]],
+    };
+  }
+
+  private createForcePoint(kind: ForcePoint["kind"], x: number, y: number): ForcePoint {
+    const clamped = this.clampMapObjectPosition(x, y);
+
+    return {
+      id: this.nextMapObjectId++,
+      kind,
+      x: clamped.x,
+      y: clamped.y,
+      radius: DEFAULT_FORCE_POINT_RADIUS,
+      strength: DEFAULT_FORCE_POINT_STRENGTH,
+    };
+  }
+
+  private clampMapObjectPosition(x: number, y: number) {
+    return {
+      x: clamp(x, MAP_OBJECT_HIT_RADIUS, this.config.width - MAP_OBJECT_HIT_RADIUS),
+      y: clamp(y, MAP_OBJECT_HIT_RADIUS, this.config.height - MAP_OBJECT_HIT_RADIUS),
     };
   }
 
@@ -322,6 +446,10 @@ export class Simulation {
     }
   }
 
+  private getBuiltInSurfaceId(): BuiltInSurfaceId {
+    return this.surfaceId === UPLOADED_HEIGHT_MAP_SURFACE_ID ? DEFAULT_FALLBACK_SURFACE : this.surfaceId;
+  }
+
   private keepBallInsideBounds(ball: Ball) {
     const minX = ball.radius;
     const maxX = this.config.width - ball.radius;
@@ -356,6 +484,81 @@ export class Simulation {
 
     ball.x = clamp(ball.x, minX, maxX);
     ball.y = clamp(ball.y, minY, maxY);
+  }
+
+  private stepBallWithSemiImplicitEuler(ball: Ball, dt: number, surface = this.surface) {
+    const acceleration = this.getAccelerationAt(ball.x, ball.y, surface);
+
+    ball.vx += acceleration.ax * dt;
+    ball.vy += acceleration.ay * dt;
+
+    const dampingScale = this.getDampingScale(dt);
+    ball.vx *= dampingScale;
+    ball.vy *= dampingScale;
+
+    ball.x += ball.vx * dt;
+    ball.y += ball.vy * dt;
+  }
+
+  private stepBallWithVelocityVerlet(ball: Ball, dt: number, surface = this.surface) {
+    const initialAcceleration = this.getAccelerationAt(ball.x, ball.y, surface);
+    const nextX = ball.x + ball.vx * dt + 0.5 * initialAcceleration.ax * dt * dt;
+    const nextY = ball.y + ball.vy * dt + 0.5 * initialAcceleration.ay * dt * dt;
+    const nextAcceleration = this.getAccelerationAt(nextX, nextY, surface);
+    const dampingScale = this.getDampingScale(dt);
+
+    ball.x = nextX;
+    ball.y = nextY;
+    ball.vx = (ball.vx + 0.5 * (initialAcceleration.ax + nextAcceleration.ax) * dt) * dampingScale;
+    ball.vy = (ball.vy + 0.5 * (initialAcceleration.ay + nextAcceleration.ay) * dt) * dampingScale;
+  }
+
+  private getAccelerationAt(x: number, y: number, surface = this.surface): Acceleration {
+    const slope = surface.gradientAt(x, y, this.context);
+    let ax = -this.config.gravityStrength * slope.dx;
+    let ay = -this.config.gravityStrength * slope.dy;
+
+    for (const object of this.mapObjects) {
+      if (object.kind === "generator") {
+        continue;
+      }
+
+      const dx = object.x - x;
+      const dy = object.y - y;
+      const distance = Math.hypot(dx, dy);
+
+      if (distance <= 1e-6) {
+        continue;
+      }
+
+      const normalizedDistance = distance / object.radius;
+      const magnitude = object.strength / (0.35 + normalizedDistance * normalizedDistance);
+      const direction = object.kind === "attractor" ? 1 : -1;
+
+      ax += direction * (dx / distance) * magnitude;
+      ay += direction * (dy / distance) * magnitude;
+    }
+
+    return { ax, ay };
+  }
+
+  private getDampingScale(dt: number) {
+    return 1 / (1 + this.config.damping * dt);
+  }
+
+  private stepGenerators(dt: number) {
+    for (const object of this.mapObjects) {
+      if (object.kind !== "generator") {
+        continue;
+      }
+
+      object.elapsedSeconds += dt;
+
+      while (object.elapsedSeconds >= object.spawnIntervalSeconds) {
+        object.elapsedSeconds -= object.spawnIntervalSeconds;
+        this.addBallAt(object.x, object.y, 0, 0);
+      }
+    }
   }
 
   private resolveBallCollisions() {

@@ -143,6 +143,18 @@ input:disabled {
   color: rgba(17, 17, 17, 0.68);
 }
 
+.control-hint[data-state="loading"] {
+  color: rgba(17, 17, 17, 0.84);
+}
+
+.control-hint[data-state="ready"] {
+  color: rgba(17, 17, 17, 0.76);
+}
+
+.control-hint[data-state="error"] {
+  color: #8a2a16;
+}
+
 .panel-title {
   margin: 0;
   font-size: 1.4rem;
@@ -244,6 +256,10 @@ output {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.tool-button-row-wide {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .tool-button-row-single {
   grid-template-columns: 1fr;
 }
@@ -306,6 +322,12 @@ output {
 }
 
 .drawing-canvas[data-mode="stamp-pattern"] {
+  cursor: copy;
+}
+
+.drawing-canvas[data-mode="place-attractor"],
+.drawing-canvas[data-mode="place-repellor"],
+.drawing-canvas[data-mode="place-generator"] {
   cursor: copy;
 }
 
@@ -496,7 +518,11 @@ output {
   }
 
   [data-mode-stamp] {
-    grid-column: 1 / -1;
+    grid-column: auto;
+  }
+
+  .tool-button-row-wide > button {
+    min-width: 0;
   }
 
   .status-pill {
